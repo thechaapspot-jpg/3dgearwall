@@ -859,9 +859,18 @@
     `).join('');
   }
 
+  const OUT_OF_STOCK_IDS = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','20','21','22','23','24','26','27','28','29','30','31','32'];
+
   // ─── Core Cart Operations ───
   window.addToCart = function (product, options = {}) {
     if (!product || !product.name) return;
+
+    // Check if product is out of stock
+    const prodIdStr = String(product.id || '').replace(/^GW-/, '').replace(/\.html$/, '');
+    if (OUT_OF_STOCK_IDS.includes(prodIdStr) || product.out_of_stock === true) {
+      showToast(product.name, 'Item is OUT OF STOCK and cannot be purchased', product.image);
+      return;
+    }
 
     const signature = (product.id || product.name) + '_' + (product.price || 0) + '_' + (product.scale || '') + '_' + JSON.stringify(product.customDetails || '');
     const now = Date.now();

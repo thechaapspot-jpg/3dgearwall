@@ -159,12 +159,38 @@
     });
   }
 
-  // 3. Quantity Steppers (Synchronized across Desktop & Mobile Sticky Bar)
+  // 3. Synchronized Quantity Stepper System
+  const OUT_OF_STOCK_IDS = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','20','21','22','23','24','26','27','28','29','30','31','32'];
+
+  function isCurrentProductOutOfStock() {
+    const idMatch = window.location.pathname.match(/product\/(\d+)/);
+    const prodId = idMatch ? idMatch[1] : '';
+    if (OUT_OF_STOCK_IDS.includes(prodId)) return true;
+    if (document.querySelector('.gw-stock-badge') || (document.body && document.body.innerHTML.includes('OUT OF STOCK'))) {
+      return true;
+    }
+    return false;
+  }
+
   function setupQuantitySteppers() {
+    if (isCurrentProductOutOfStock()) {
+      // Keep steppers disabled for Out of Stock
+      document.querySelectorAll('button[data-qty-action], .gw-qty-val').forEach(el => {
+        if (el.tagName === 'BUTTON') {
+          el.setAttribute('disabled', 'true');
+          el.style.opacity = '0.4';
+          el.style.cursor = 'not-allowed';
+          el.style.pointerEvents = 'none';
+        }
+      });
+      return;
+    }
+
+    const displays = document.querySelectorAll('.gw-qty-val, [data-qty-display]');
+
     function updateDisplays() {
-      // Find all quantity number spans
-      document.querySelectorAll('.gw-qty-val, main .flex.items-center.gap-2 span.font-bold, .fixed.bottom-0 span.font-bold').forEach(el => {
-        el.textContent = currentQty;
+      displays.forEach(d => {
+        d.textContent = currentQty;
       });
     }
 
@@ -280,6 +306,21 @@
         if (typeof window.closeCartDrawer === 'function') window.closeCartDrawer();
         if (typeof window.openCheckoutModal === 'function') window.openCheckoutModal();
       }, 100);
+    }
+
+    // If product is out of stock, enforce disabled state on action buttons
+    if (isCurrentProductOutOfStock()) {
+      document.querySelectorAll('button').forEach(btn => {
+        if (btn.closest('#gw-cart-drawer') || btn.closest('#gw-checkout-modal-root') || btn.closest('#gw-toast-container')) return;
+        const text = (btn.textContent || '').trim().toLowerCase();
+        if (text.includes('add to') || text.includes('buy now') || text.includes('out of stock')) {
+          btn.setAttribute('disabled', 'true');
+          btn.style.cursor = 'not-allowed';
+          btn.style.pointerEvents = 'none';
+          btn.style.opacity = '0.5';
+        }
+      });
+      return;
     }
 
     // Find all "Add to Cart" / "Add to Crate" & "Buy Now" buttons in page
