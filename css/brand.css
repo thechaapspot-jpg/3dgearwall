@@ -198,3 +198,35 @@ html { scroll-behavior: smooth; }
   border-color: #000000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+
+/* Filter Drawer & Mobile Search Transitions */
+#filter-drawer {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#filter-drawer.open {
+  transform: translateX(0) !important;
+}
+#filter-drawer-backdrop {
+  transition: opacity 0.3s ease;
+}
+#filter-drawer-backdrop.open {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+#mobile-search-bar {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+}
+#mobile-search-bar.open {
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.filter-scale-btn.active-scale,
+.filter-brand-btn.active-brand {
+  background: #000000 !important;
+  color: #FFFFFF !important;
+  border-color: #000000 !important;
+}
+

@@ -65,6 +65,7 @@ const filesToSync = [
   'about.html',
   'collections.html',
   'track.html',
+  '404.html',
   'free_bmw_m3_e30.glb',
   'shadow.png',
   'logo.png',

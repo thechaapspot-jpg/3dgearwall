@@ -96,7 +96,18 @@ const server = http.createServer((req, res) => {
     return serveFile(path.join(ROOT, 'collections.html'), res);
   }
 
-  // 404
+  // 404 Handler: Serve custom 404.html if available
+  const notFoundPage = path.join(ROOT, '404.html');
+  if (fs.existsSync(notFoundPage) && fs.statSync(notFoundPage).isFile()) {
+    res.writeHead(404, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    });
+    fs.createReadStream(notFoundPage).pipe(res);
+    return;
+  }
+
   res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`
     <div style="font-family:sans-serif;text-align:center;padding:50px;background:#0d0d11;color:#fff;min-height:100vh;">

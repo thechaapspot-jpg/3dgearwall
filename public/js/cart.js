@@ -327,8 +327,15 @@
     if (totalEl) totalEl.textContent = formatINR(subtotal);
 
     // Update any external cart counters or floating badges
-    document.querySelectorAll('.cart-count, [data-cart-count]').forEach(el => {
+    document.querySelectorAll('.cart-count, [data-cart-count], .cart-count-badge').forEach(el => {
       el.textContent = totalCount;
+      if (totalCount > 0) {
+        el.classList.remove('hidden');
+        el.style.display = 'inline-flex';
+      } else {
+        el.classList.add('hidden');
+        el.style.display = 'none';
+      }
     });
 
     if (!container) return;
