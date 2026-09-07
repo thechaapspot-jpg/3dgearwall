@@ -488,12 +488,14 @@
                 <!-- Action Buttons: Solid Black Action Button Matching Contact Page -->
                 <div class="flex flex-col sm:flex-row gap-3">
                   <button id="btn-add-to-crate"
+                          data-cart-handled="true"
                           class="w-full sm:flex-1 py-4 bg-black text-white font-semibold text-sm hover:bg-black/90 transition-colors flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                     <span>Add to Crate</span>
                   </button>
 
                   <button id="btn-buy-now"
+                          data-cart-handled="true"
                           class="w-full sm:flex-1 py-4 bg-gradient-to-r from-[var(--brand-orange)] via-[var(--brand-red)] to-[var(--brand-pink)] text-white font-semibold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider shadow-lg shadow-black/10">
                     <span>Buy Now</span>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
@@ -863,16 +865,31 @@
     // "Add to Crate" Button
     const addCrateBtn = document.getElementById('btn-add-to-crate');
     if (addCrateBtn) {
-      addCrateBtn.addEventListener('click', handleAddToCart);
+      addCrateBtn.setAttribute('data-cart-handled', 'true');
+      addCrateBtn.addEventListener('click', (e) => {
+        if (e) {
+          e.__cartHandled = true;
+          e.stopPropagation();
+        }
+        handleAddToCart(e);
+      });
     }
 
     // "Buy Now" Button
     const buyNowBtn = document.getElementById('btn-buy-now');
     if (buyNowBtn) {
-      buyNowBtn.addEventListener('click', () => {
-        handleAddToCart();
+      buyNowBtn.setAttribute('data-cart-handled', 'true');
+      buyNowBtn.addEventListener('click', (e) => {
+        if (e) {
+          e.__cartHandled = true;
+          e.stopPropagation();
+        }
+        handleAddToCart(e);
         if (window.openCheckoutModal) {
-          window.openCheckoutModal();
+          setTimeout(() => {
+            if (window.closeCartDrawer) window.closeCartDrawer();
+            window.openCheckoutModal();
+          }, 150);
         }
       });
     }
@@ -1041,25 +1058,35 @@
     }
   }
 
-  function handleAddToCart() {
+  function handleAddToCart(e) {
+    if (e) {
+      e.__cartHandled = true;
+      e.stopPropagation();
+    }
     const car = state.selectedCar;
     const size = state.selectedSize;
     const bg = state.selectedBg;
     const plaque = state.plaqueText;
 
     const item = {
-      id: `custom-${car.id}-${size.id}-${Date.now()}`,
+      id: `custom-${car.id}-${size.id}`,
       name: `Custom 3D Frame - ${car.name} (${size.label.split(' ')[0]})`,
       price: size.price,
       scale: `${size.label.split(' ')[0]} Frame`,
       image: car.image,
-      details: `${bg.name} • Plaque: "${plaque}"`
+      customDetails: {
+        frameSize: size.label,
+        bgTheme: bg.name,
+        plaqueText: plaque
+      }
     };
 
     if (window.addToCart) {
       window.addToCart(item);
     } else {
-      alert(`Added ${item.name} to Crate!`);
+      if (window.showGearwallToast) {
+        window.showGearwallToast(`Added ${item.name} to Crate!`);
+      }
     }
 
     if (window.openCartDrawer) {

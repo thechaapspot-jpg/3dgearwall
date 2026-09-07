@@ -251,10 +251,177 @@ html { scroll-behavior: smooth; }
   pointer-events: auto !important;
 }
 
+.filter-scale-btn,
+.filter-brand-btn {
+  background-color: #F1F3F5 !important;
+  color: #111827 !important;
+  border: 1px solid #D0D5DD !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.filter-scale-btn:hover,
+.filter-brand-btn:hover {
+  background-color: #E2E6EA !important;
+  color: #000000 !important;
+  border-color: #98A2B3 !important;
+  transform: translateY(-1px) !important;
+}
+
 .filter-scale-btn.active-scale,
 .filter-brand-btn.active-brand {
   background: #000000 !important;
   color: #FFFFFF !important;
   border-color: #000000 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+.gw-form-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+}
+@media (max-width: 520px) {
+  .gw-form-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+}
+
+/* Cart Drawer - Luxury Dark Automotive Aesthetics */
+#gw-cart-drawer {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  max-width: 440px !important;
+  background: #0c0c10 !important;
+  color: #ffffff !important;
+  z-index: 99999 !important;
+  box-shadow: -15px 0 50px rgba(0, 0, 0, 0.85) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+  transform: translateX(100%) !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s ease !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+#gw-cart-drawer.open {
+  transform: translateX(0) !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+#gw-cart-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  z-index: 99998 !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: opacity 0.3s ease, visibility 0.3s ease !important;
+}
+
+#gw-cart-backdrop.open {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* Checkout Modal */
+#gw-checkout-modal-root {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.82) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  z-index: 1000001 !important;
+  display: none;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  opacity: 0;
+  transition: opacity 0.25s ease !important;
+}
+
+#gw-checkout-modal-root.open {
+  display: flex !important;
+  opacity: 1 !important;
+}
+
+/* Luxury Floating Toast */
+#gw-toast-container {
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  z-index: 1000002 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  pointer-events: none !important;
+  max-width: calc(100vw - 32px) !important;
+}
+
+@media (max-width: 640px) {
+  #gw-toast-container {
+    bottom: auto !important;
+    top: 16px !important;
+    right: 16px !important;
+    left: 16px !important;
+  }
+}
+
+.gw-toast-card {
+  background: rgba(16, 16, 22, 0.96) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 107, 53, 0.35) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(255, 107, 53, 0.15) !important;
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  color: #ffffff !important;
+  pointer-events: auto !important;
+  transform: translateY(16px);
+  opacity: 0;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease !important;
+}
+
+.gw-toast-card.visible {
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+}
+
+/* Luxury Order Success Celebration Modal */
+#gw-order-success-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  z-index: 1000005 !important;
+  display: none;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  opacity: 0;
+  transition: opacity 0.3s ease !important;
+}
+
+#gw-order-success-modal.open {
+  display: flex !important;
+  opacity: 1 !important;
 }
 
