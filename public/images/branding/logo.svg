@@ -1,0 +1,20 @@
+<svg viewBox="0 0 260 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="height:36px;width:auto;display:inline-block;vertical-align:middle;">
+  <defs>
+    <linearGradient id="gwGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF6B35"/>
+      <stop offset="50%" stop-color="#FF3366"/>
+      <stop offset="100%" stop-color="#FF0055"/>
+    </linearGradient>
+  </defs>
+  <!-- Main Brand Name -->
+  <text x="0" y="24" font-family="'Montserrat', 'Barlow', -apple-system, sans-serif" font-weight="900" font-size="22" letter-spacing="-0.03em" fill="currentColor">
+    3D GEAR
+  </text>
+  <text x="108" y="24" font-family="'Montserrat', 'Barlow', -apple-system, sans-serif" font-weight="900" font-size="22" letter-spacing="-0.03em" fill="url(#gwGradient)">
+    WALL
+  </text>
+  <!-- Tagline below -->
+  <text x="1" y="42" font-family="'Barlow', -apple-system, sans-serif" font-weight="800" font-size="9" letter-spacing="0.28em" fill="#FF6B35">
+    DIE-CAST WALL ART
+  </text>
+</svg>

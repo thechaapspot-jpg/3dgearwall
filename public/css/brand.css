@@ -1,0 +1,196 @@
+html { scroll-behavior: smooth; }
+/* 3D Gear Wall - Typography & Brand Stylesheet */
+@import url('https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Montserrat:wght@700;800;900&display=swap');
+
+:root {
+  --brand-orange: #FF6B35;
+  --brand-red: #FF3366;
+  --brand-pink: #FF0055;
+  --brand-dark: #0D0D11;
+  --brand-card: #14141B;
+}
+
+/* Premium Typographic Brand Lockup (No icon, pure luxury typography) */
+.brand-lockup {
+  display: inline-flex;
+  flex-direction: column;
+  text-decoration: none;
+  line-height: 1;
+  user-select: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.brand-lockup:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.brand-lockup-main {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  letter-spacing: -0.03em;
+  font-family: 'Montserrat', 'Barlow', -apple-system, sans-serif;
+  font-weight: 900;
+  font-size: 20px;
+  line-height: 1;
+}
+
+@media (min-width: 768px) {
+  .brand-lockup-main {
+    font-size: 23px;
+    gap: 6px;
+  }
+}
+
+/* Light Theme Brand */
+.brand-light .brand-name-gear {
+  color: #111827;
+}
+
+/* Dark Theme Brand */
+.brand-dark .brand-name-gear {
+  color: #FFFFFF;
+}
+
+.brand-name-wall {
+  background: linear-gradient(135deg, #FF6B35 0%, #FF3366 50%, #FF0055 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.brand-lockup-tagline {
+  font-family: 'Barlow', -apple-system, sans-serif;
+  font-weight: 800;
+  font-size: 8px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #FF6B35;
+  margin-top: 4px;
+  line-height: 1;
+}
+
+@media (min-width: 768px) {
+  .brand-lockup-tagline {
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    margin-top: 4px;
+  }
+}
+
+/* Pulse animation for 3D status badge */
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.5; }
+}
+
+/* Modern FAQ Accordion */
+.faq-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background-color 0.2s ease;
+}
+
+.faq-question-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #FFFFFF;
+  font-family: 'Barlow', sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  transition: color 0.2s ease;
+}
+
+@media (min-width: 768px) {
+  .faq-question-btn {
+    font-size: 18px;
+    padding: 24px 0;
+  }
+}
+
+.faq-question-btn:hover {
+  color: #FF6B35;
+}
+
+.faq-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 16px;
+  transition: transform 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+}
+
+.faq-item.active .faq-icon {
+  transform: rotate(45deg);
+  border-color: #FF6B35;
+  background: rgba(255, 107, 53, 0.15);
+  color: #FF6B35;
+}
+
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.faq-item.active .faq-answer {
+  max-height: 400px;
+  padding-bottom: 24px;
+}
+
+/* Collections Filter Bar */
+.filter-pills-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.filter-pills-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-pill {
+  white-space: nowrap;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 9999px;
+  background: #F3F4F6;
+  color: #4B5563;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-pill:hover {
+  background: #E5E7EB;
+  color: #111827;
+}
+
+.filter-pill.active {
+  background: #000000;
+  color: #FFFFFF;
+  border-color: #000000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
