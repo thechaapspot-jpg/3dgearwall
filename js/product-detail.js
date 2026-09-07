@@ -213,7 +213,7 @@
 
     // Original Price
     const origPriceEl = document.querySelector('main .line-through');
-    let originalPrice = 999;
+    let originalPrice = null;
     if (origPriceEl) {
       const match = origPriceEl.textContent.match(/₹\s*([0-9,]+)/);
       if (match) originalPrice = Number(match[1].replace(/,/g, ''));
