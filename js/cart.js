@@ -703,8 +703,10 @@
       return (matchId || matchName) && matchScale && matchCustom;
     });
 
+    const qtyToAdd = Math.max(1, Number(product.quantity) || 1);
+
     if (existing) {
-      existing.quantity = (Number(existing.quantity) || 1) + 1;
+      existing.quantity = (Number(existing.quantity) || 1) + qtyToAdd;
     } else {
       cart.push({
         id: product.id || ('GW-' + Date.now()),
@@ -713,13 +715,14 @@
         originalPrice: Number(product.originalPrice) || 999,
         scale: product.scale || '1:36',
         image: product.image || '/images/products/twoofvu6src3z5foyd8h.jpg',
-        quantity: 1,
+        quantity: qtyToAdd,
         customDetails: product.customDetails || null
       });
     }
 
     saveCart();
-    showToast(product.name, `Added to Crate (${product.scale || 'Standard'})`, product.image);
+    const qtyText = qtyToAdd > 1 ? ` (${qtyToAdd} items)` : '';
+    showToast(product.name, `Added to Crate${qtyText} (${product.scale || 'Standard'})`, product.image);
     
     if (!options.silent) {
       openCartDrawer();

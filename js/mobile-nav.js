@@ -204,11 +204,11 @@
   // Get total items in cart from localStorage
   function getCartItemCount() {
     try {
-      const saved = localStorage.getItem('3dgearwall_cart');
+      const saved = localStorage.getItem('3dgearwall_cart_v2') || localStorage.getItem('3dgearwall_cart');
       if (!saved) return 0;
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        return parsed.reduce((sum, item) => sum + (item.quantity || 1), 0);
+        return parsed.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
       }
     } catch (e) {}
     return 0;
@@ -242,8 +242,8 @@
 
     drawer.innerHTML = `
       <div class="gw-drawer-header">
-        <a href="index.html" class="flex items-center" aria-label="3D Gear Wall">
-          <img src="/images/logo-footer.png?v=5" alt="3D Gear Wall" style="height: 34px; width: auto; object-contain;" />
+        <a href="/index.html" class="flex items-center" aria-label="3D Gear Wall">
+          <img src="/images/logo-footer.png?v=5" alt="3D Gear Wall" style="height: 34px; width: auto; object-fit: contain;" />
         </a>
         <button id="gw-mobile-nav-close" class="gw-drawer-close-btn" aria-label="Close menu">
           <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -253,14 +253,14 @@
       </div>
 
       <div class="gw-drawer-body">
-        <a href="index.html" class="gw-nav-link ${isHome ? 'active' : ''}">
+        <a href="/index.html" class="gw-nav-link ${isHome ? 'active' : ''}">
           <span>Home</span>
           <svg class="gw-nav-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
           </svg>
         </a>
 
-        <a href="collections.html" class="gw-nav-link ${isCollections ? 'active' : ''}">
+        <a href="/collections.html" class="gw-nav-link ${isCollections ? 'active' : ''}">
           <div style="display: flex; flex-direction: column;">
             <span>Collections</span>
             <span style="font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 500;">36+ Rare 3D Car Frames</span>
@@ -270,7 +270,7 @@
           </svg>
         </a>
 
-        <a href="customize.html" class="gw-nav-link ${isCustom ? 'active' : ''}">
+        <a href="/customize.html" class="gw-nav-link ${isCustom ? 'active' : ''}">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span>Custom Studio</span>
             <span class="gw-nav-badge">NEW</span>
@@ -280,21 +280,21 @@
           </svg>
         </a>
 
-        <a href="track.html" class="gw-nav-link ${isTrack ? 'active' : ''}">
+        <a href="/track.html" class="gw-nav-link ${isTrack ? 'active' : ''}">
           <span>Track Order</span>
           <svg class="gw-nav-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
           </svg>
         </a>
 
-        <a href="contact.html" class="gw-nav-link ${isContact ? 'active' : ''}">
+        <a href="/contact.html" class="gw-nav-link ${isContact ? 'active' : ''}">
           <span>Contact Us</span>
           <svg class="gw-nav-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
           </svg>
         </a>
 
-        <a href="about.html" class="gw-nav-link ${isAbout ? 'active' : ''}">
+        <a href="/about.html" class="gw-nav-link ${isAbout ? 'active' : ''}">
           <span>About Us</span>
           <svg class="gw-nav-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
