@@ -99,19 +99,31 @@
 
     // Setup Filter Drawer Open/Close
     function openDrawer() {
-      if (filterDrawer) filterDrawer.classList.add('open');
-      if (filterBackdrop) filterBackdrop.classList.add('open');
+      const drawer = filterDrawer || document.getElementById('filter-drawer');
+      const backdrop = filterBackdrop || document.getElementById('filter-drawer-backdrop');
+      if (drawer) drawer.classList.add('open');
+      if (backdrop) backdrop.classList.add('open');
       document.body.style.overflow = 'hidden';
     }
     function closeDrawer() {
-      if (filterDrawer) filterDrawer.classList.remove('open');
-      if (filterBackdrop) filterBackdrop.classList.remove('open');
+      const drawer = filterDrawer || document.getElementById('filter-drawer');
+      const backdrop = filterBackdrop || document.getElementById('filter-drawer-backdrop');
+      if (drawer) drawer.classList.remove('open');
+      if (backdrop) backdrop.classList.remove('open');
       document.body.style.overflow = '';
     }
+
+    // Expose on window for inline and external triggers
+    window.openFilterDrawer = openDrawer;
+    window.closeFilterDrawer = closeDrawer;
 
     if (openFilterBtn) openFilterBtn.addEventListener('click', openDrawer);
     if (closeFilterBtn) closeFilterBtn.addEventListener('click', closeDrawer);
     if (filterBackdrop) filterBackdrop.addEventListener('click', closeDrawer);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDrawer();
+    });
 
     // Populate Drawer Brands
     if (drawerBrandList) {
@@ -124,7 +136,7 @@
         const count = b === 'All' ? cardData.length : (brandCounts[b] || 0);
         if (count === 0 && b !== 'All') return '';
         const bKey = b.toLowerCase();
-        return `<button type="button" class="filter-brand-btn px-3 py-1.5 text-xs font-semibold border border-black/15 rounded-md transition-all ${bKey === currentBrand ? 'active-brand' : ''}" data-brand="${bKey}">
+        return `<button type="button" class="filter-brand-btn px-3 py-1.5 text-xs font-semibold border border-black/15 rounded-md transition-all cursor-pointer ${bKey === currentBrand ? 'active-brand' : ''}" data-brand="${bKey}">
           ${b} (${count})
         </button>`;
       }).join('');
@@ -132,7 +144,7 @@
       drawerBrandList.addEventListener('click', e => {
         const btn = e.target.closest('.filter-brand-btn');
         if (!btn) return;
-        currentBrand = btn.getAttribute('data-brand');
+        currentBrand = btn.getAttribute('data-brand') || 'all';
         drawerBrandList.querySelectorAll('.filter-brand-btn').forEach(b => {
           b.classList.toggle('active-brand', b.getAttribute('data-brand') === currentBrand);
         });
@@ -143,7 +155,7 @@
     // Drawer Scale Selection
     drawerScaleBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        currentScale = btn.getAttribute('data-scale');
+        currentScale = btn.getAttribute('data-scale') || 'all';
         drawerScaleBtns.forEach(b => b.classList.toggle('active-scale', b.getAttribute('data-scale') === currentScale));
         applyAllFilters(true);
       });
@@ -166,6 +178,7 @@
     }
     if (drawerApplyBtn) {
       drawerApplyBtn.addEventListener('click', () => {
+        applyAllFilters(true);
         closeDrawer();
       });
     }
@@ -231,15 +244,13 @@
       });
 
       // Sort visible cards
-      if (currentSort !== 'featured') {
-        const sorted = [...cardData].sort((a, b) => {
-          if (currentSort === 'price-asc') return a.price - b.price;
-          if (currentSort === 'price-desc') return b.price - a.price;
-          if (currentSort === 'name-asc') return a.title.localeCompare(b.title);
-          return a.originalIndex - b.originalIndex;
-        });
-        sorted.forEach(item => grid.appendChild(item.element));
-      }
+      const sorted = [...cardData].sort((a, b) => {
+        if (currentSort === 'price-asc') return a.price - b.price;
+        if (currentSort === 'price-desc') return b.price - a.price;
+        if (currentSort === 'name-asc') return a.title.localeCompare(b.title);
+        return a.originalIndex - b.originalIndex;
+      });
+      sorted.forEach(item => grid.appendChild(item.element));
 
       // Update pills
       if (filterPillsBar) {
@@ -305,6 +316,10 @@
       drawerScaleBtns.forEach(b => b.classList.toggle('active-scale', b.getAttribute('data-scale') === 'all'));
       applyAllFilters(true);
     }
+
+    // Expose helpers globally
+    window.resetAllFilters = resetAllFilters;
+    window.applyAllFilters = applyAllFilters;
 
     // Initial load from URL params
     const initialParams = new URLSearchParams(window.location.search);

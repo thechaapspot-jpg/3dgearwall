@@ -199,18 +199,46 @@ html { scroll-behavior: smooth; }
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Filter Drawer & Mobile Search Transitions */
+/* Filter Drawer - Off-screen & completely hidden by default */
 #filter-drawer {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  max-width: 24rem !important;
+  height: 100% !important;
+  background: #ffffff !important;
+  z-index: 1000 !important;
+  transform: translateX(100%) !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s ease !important;
 }
+
 #filter-drawer.open {
   transform: translateX(0) !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
 }
+
+/* Filter Drawer Backdrop - Hidden by default */
 #filter-drawer-backdrop {
-  transition: opacity 0.3s ease;
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  z-index: 999 !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: opacity 0.3s ease, visibility 0.3s ease !important;
 }
+
 #filter-drawer-backdrop.open {
   opacity: 1 !important;
+  visibility: visible !important;
   pointer-events: auto !important;
 }
 
