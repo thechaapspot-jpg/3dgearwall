@@ -1,0 +1,21 @@
+{
+  "name": "3dgearwall",
+  "version": "1.0.0",
+  "description": "3D Gear Wall - Premium Handcrafted 3D Die-Cast Model Car Wall Art & Frames",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "node -e \"console.log('Build complete: Static site ready for deployment')\""
+  },
+  "keywords": [
+    "3d-gear-wall",
+    "diecast-frames",
+    "model-cars",
+    "wall-art",
+    "automotive-decor",
+    "f1-frames"
+  ],
+  "author": "3D Gear Wall",
+  "license": "ISC"
+}
