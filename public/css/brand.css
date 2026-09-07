@@ -292,23 +292,23 @@ html { scroll-behavior: smooth; }
   }
 }
 
-/* Cart Drawer - Luxury Dark Automotive Aesthetics */
+/* Cart Drawer - Boxy Monochrome */
 #gw-cart-drawer {
   position: fixed !important;
   top: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
   width: 100% !important;
-  max-width: 440px !important;
+  max-width: 420px !important;
   background: #0c0c10 !important;
   color: #ffffff !important;
   z-index: 99999 !important;
-  box-shadow: -15px 0 50px rgba(0, 0, 0, 0.85) !important;
-  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.85) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.06) !important;
   transform: translateX(100%) !important;
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s ease !important;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s ease !important;
   display: flex !important;
   flex-direction: column !important;
 }
@@ -323,8 +323,8 @@ html { scroll-behavior: smooth; }
   position: fixed !important;
   inset: 0 !important;
   background: rgba(0, 0, 0, 0.75) !important;
-  backdrop-filter: blur(6px) !important;
-  -webkit-backdrop-filter: blur(6px) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
   z-index: 99998 !important;
   opacity: 0 !important;
   visibility: hidden !important;
@@ -338,13 +338,13 @@ html { scroll-behavior: smooth; }
   pointer-events: auto !important;
 }
 
-/* Checkout Modal */
+/* Checkout Modal - Boxy */
 #gw-checkout-modal-root {
   position: fixed !important;
   inset: 0 !important;
-  background: rgba(0, 0, 0, 0.82) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
   z-index: 1000001 !important;
   display: none;
   align-items: center !important;
@@ -359,7 +359,12 @@ html { scroll-behavior: smooth; }
   opacity: 1 !important;
 }
 
-/* Luxury Floating Toast */
+/* COD Popup */
+#gw-cod-popup {
+  z-index: 1000010 !important;
+}
+
+/* Monochrome Toast */
 #gw-toast-container {
   position: fixed !important;
   bottom: 24px !important;
@@ -367,7 +372,7 @@ html { scroll-behavior: smooth; }
   z-index: 1000002 !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  gap: 10px !important;
   pointer-events: none !important;
   max-width: calc(100vw - 32px) !important;
 }
@@ -375,26 +380,25 @@ html { scroll-behavior: smooth; }
 @media (max-width: 640px) {
   #gw-toast-container {
     bottom: auto !important;
-    top: 16px !important;
-    right: 16px !important;
-    left: 16px !important;
+    top: 12px !important;
+    right: 12px !important;
+    left: 12px !important;
   }
 }
 
 .gw-toast-card {
-  background: rgba(16, 16, 22, 0.96) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255, 107, 53, 0.35) !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(255, 107, 53, 0.15) !important;
-  border-radius: 12px !important;
-  padding: 12px 16px !important;
+  background: rgba(12, 12, 16, 0.97) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7) !important;
+  padding: 10px 14px !important;
   display: flex !important;
   align-items: center !important;
-  gap: 12px !important;
+  gap: 10px !important;
   color: #ffffff !important;
   pointer-events: auto !important;
-  transform: translateY(16px);
+  transform: translateY(12px);
   opacity: 0;
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease !important;
 }
@@ -404,13 +408,13 @@ html { scroll-behavior: smooth; }
   opacity: 1 !important;
 }
 
-/* Luxury Order Success Celebration Modal */
+/* Order Success Modal - Boxy */
 #gw-order-success-modal {
   position: fixed !important;
   inset: 0 !important;
   background: rgba(0, 0, 0, 0.85) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
   z-index: 1000005 !important;
   display: none;
   align-items: center !important;
@@ -425,3 +429,17 @@ html { scroll-behavior: smooth; }
   opacity: 1 !important;
 }
 
+/* Universal Boxy Design Enforcements */
+#gw-cart-drawer *, #gw-checkout-modal *, #gw-order-success-modal *, #gw-toast-container * {
+  border-radius: 0 !important;
+}
+
+/* Product Detail & Shop Buttons - Sharp Boxy Monochrome */
+.product-action-btn, 
+.add-to-cart-btn, 
+.buy-now-btn,
+.quantity-btn,
+.mobile-cart-action-btn {
+  border-radius: 0 !important;
+  font-family: 'Barlow', -apple-system, sans-serif !important;
+}

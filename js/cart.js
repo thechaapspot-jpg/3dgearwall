@@ -14,26 +14,69 @@
 (function () {
   'use strict';
 
+  if (window.__3DGEARWALL_CART_INITIALIZED__) {
+    return;
+  }
+  window.__3DGEARWALL_CART_INITIALIZED__ = true;
+
   const STORAGE_KEY = '3dgearwall_cart_v2';
   const LEGACY_STORAGE_KEY = '3dgearwall_cart';
   const RAZORPAY_KEY = 'rzp_test_PLACEHOLDER'; // Replace with live key
 
-  // State
-  let cart = [];
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      cart = JSON.parse(saved);
-    } else {
-      const legacySaved = localStorage.getItem(LEGACY_STORAGE_KEY);
-      if (legacySaved) {
-        cart = JSON.parse(legacySaved);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+  // Dynamic storage loader & syncer
+  function getCart() {
+    let items = [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) items = parsed;
       }
+    } catch (e) { items = []; }
+
+    if (items.length === 0) {
+      try {
+        const legacySaved = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacySaved) {
+          const parsed = JSON.parse(legacySaved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            items = parsed;
+          }
+        }
+      } catch (e) {}
     }
-  } catch (e) {
-    cart = [];
+
+    // Merge any items from Next.js wheels-frames-cart
+    try {
+      const nextSaved = localStorage.getItem('wheels-frames-cart');
+      if (nextSaved) {
+        const parsedNext = JSON.parse(nextSaved);
+        const nextItems = parsedNext?.state?.items || (Array.isArray(parsedNext) ? parsedNext : null);
+        if (Array.isArray(nextItems) && nextItems.length > 0) {
+          nextItems.forEach(nItem => {
+            const exists = items.find(it => String(it.id) === String(nItem.id) || (it.name && nItem.name && it.name.trim() === nItem.name.trim()));
+            if (!exists) {
+              items.push({
+                id: nItem.id || ('GW-' + Date.now()),
+                name: nItem.name || 'Handcrafted 3D Frame',
+                price: Number(nItem.price) || 599,
+                originalPrice: nItem.originalPrice ? Number(nItem.originalPrice) : null,
+                scale: nItem.scale || '1:36',
+                image: nItem.image || '/images/products/twoofvu6src3z5foyd8h.jpg',
+                quantity: Math.max(1, Number(nItem.quantity) || 1),
+                customDetails: nItem.customDetails || null
+              });
+            }
+          });
+        }
+      }
+    } catch (e) {}
+
+    return items;
   }
+
+  // State
+  let cart = getCart();
 
   let lastAddSignature = '';
   let lastAddTime = 0;
@@ -46,6 +89,25 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
       localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(cart));
+      // Also synchronize with Next.js cart store
+      const nextCartState = {
+        state: {
+          items: cart.map(it => ({
+            id: it.id,
+            name: it.name,
+            brand: it.brand || '',
+            price: it.price,
+            originalPrice: it.originalPrice,
+            scale: it.scale || '1:36',
+            image: it.image,
+            quantity: it.quantity,
+            type: it.customDetails ? 'custom-poster' : 'product'
+          })),
+          isDrawerOpen: false
+        },
+        version: 0
+      };
+      localStorage.setItem('wheels-frames-cart', JSON.stringify(nextCartState));
     } catch (e) {
       console.error('Failed to save cart', e);
     }
@@ -55,9 +117,9 @@
 
   // Cross-tab sync
   window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_KEY || e.key === LEGACY_STORAGE_KEY) {
+    if (e.key === STORAGE_KEY || e.key === LEGACY_STORAGE_KEY || e.key === 'wheels-frames-cart') {
       try {
-        cart = e.newValue ? JSON.parse(e.newValue) : [];
+        cart = getCart();
         updateCartUI();
       } catch (err) { /* ignore */ }
     }
@@ -366,24 +428,30 @@
 
     const clearBtn = document.getElementById('gw-clear-cart-btn');
     if (clearBtn) {
-      clearBtn.addEventListener('click', () => {
+      clearBtn.onclick = () => {
+        cart = getCart();
         if (cart.length === 0) return;
         cart = [];
         saveCart();
         showToast('Crate cleared');
-      });
+      };
     }
 
     const checkoutBtn = document.getElementById('gw-drawer-checkout-btn');
     if (checkoutBtn) {
-      checkoutBtn.addEventListener('click', () => {
-        if (cart.length === 0) {
+      checkoutBtn.onclick = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        cart = getCart();
+        if (!cart || cart.length === 0) {
           showToast('Your crate is empty', 'Add products first');
           return;
         }
         closeCartDrawer();
         openCheckoutModal();
-      });
+      };
     }
 
     const closeCheckoutBtn = document.getElementById('gw-close-checkout-modal');
@@ -657,6 +725,7 @@
 
   // ─── Open / Close Drawer ───
   function openCartDrawer() {
+    cart = getCart();
     injectCartDrawer();
     updateCartUI();
     const drawer = document.getElementById('gw-cart-drawer');
@@ -679,6 +748,11 @@
   }
 
   function openCheckoutModal() {
+    cart = getCart();
+    if (!cart || cart.length === 0) {
+      showToast('Your crate is empty', 'Add products first');
+      return;
+    }
     injectCartDrawer();
     checkoutStep = 1;
 
@@ -720,6 +794,7 @@
 
   // ─── Update Cart UI ───
   function updateCartUI() {
+    cart = getCart();
     injectCartDrawer();
     const container = document.getElementById('gw-cart-items-container');
     const subtotalEl = document.getElementById('gw-cart-subtotal');
@@ -865,6 +940,9 @@
   window.addToCart = function (product, options = {}) {
     if (!product || !product.name) return;
 
+    // Refresh cart from storage first
+    cart = getCart();
+
     // Check if product is out of stock
     const prodIdStr = String(product.id || '').replace(/^GW-/, '').replace(/\.html$/, '');
     if (OUT_OF_STOCK_IDS.includes(prodIdStr) || product.out_of_stock === true) {
@@ -881,7 +959,7 @@
     lastAddTime = now;
 
     const existing = cart.find(item => {
-      const matchId = item.id && product.id && item.id === product.id;
+      const matchId = item.id && product.id && String(item.id) === String(product.id);
       const matchName = item.name === product.name;
       const matchScale = item.scale === product.scale;
       const matchCustom = JSON.stringify(item.customDetails || {}) === JSON.stringify(product.customDetails || {});
@@ -915,6 +993,7 @@
   };
 
   window.updateCartQty = function (index, delta) {
+    cart = getCart();
     if (!cart[index]) return;
     const newQty = (Number(cart[index].quantity) || 1) + delta;
     if (newQty <= 0) {
@@ -926,6 +1005,7 @@
   };
 
   window.removeCartItem = function (index) {
+    cart = getCart();
     if (!cart[index]) return;
     cart.splice(index, 1);
     saveCart();

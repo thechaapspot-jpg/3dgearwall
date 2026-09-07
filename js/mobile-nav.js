@@ -205,10 +205,19 @@
   function getCartItemCount() {
     try {
       const saved = localStorage.getItem('3dgearwall_cart_v2') || localStorage.getItem('3dgearwall_cart');
-      if (!saved) return 0;
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) {
-        return parsed.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
+        }
+      }
+      const nextSaved = localStorage.getItem('wheels-frames-cart');
+      if (nextSaved) {
+        const parsedNext = JSON.parse(nextSaved);
+        const nextItems = parsedNext?.state?.items || (Array.isArray(parsedNext) ? parsedNext : null);
+        if (Array.isArray(nextItems) && nextItems.length > 0) {
+          return nextItems.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
+        }
       }
     } catch (e) {}
     return 0;
