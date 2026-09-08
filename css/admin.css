@@ -226,6 +226,53 @@ header.admin-navbar {
   transform: translateY(0);
 }
 
+/* Photo Gallery & Upload Dropzones */
+.photo-upload-dropzone {
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 16px;
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.photo-upload-dropzone:hover,
+.photo-upload-dropzone.drag-over {
+  border-color: var(--brand-orange);
+  background: rgba(255, 107, 53, 0.05);
+}
+
+.photo-thumb-card {
+  position: relative;
+  width: 88px;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: border-color 0.2s ease;
+}
+
+.photo-thumb-card.is-primary {
+  border-color: var(--brand-orange);
+  box-shadow: 0 0 0 1px var(--brand-orange);
+}
+
+.photo-thumb-preview {
+  position: relative;
+  width: 100%;
+  height: 88px;
+  background: #050508;
+  overflow: hidden;
+}
+
+.photo-thumb-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* Toast System */
 #admin-toast-container {
   position: fixed;

@@ -18,6 +18,9 @@
   // State
   let currentProducts = [];
   let editingPhotos = [];
+  let addingPhotos = [];
+  let addOrderPhotos = [];
+  let editOrderPhotos = [];
   let pendingDeleteId = null;
 
   // DOM Elements
@@ -48,7 +51,7 @@
   const tableBody = document.getElementById('products-table-body');
   const btnOpenAdd = document.getElementById('btn-open-add');
 
-  // Modals
+  // Edit Product Modal Elements
   const editModal = document.getElementById('edit-modal');
   const editForm = document.getElementById('edit-form');
   const editPhotosList = document.getElementById('edit-photos-list');
@@ -57,12 +60,38 @@
   const btnAddPhotoUrl = document.getElementById('btn-add-photo-url');
   const uploadStatus = document.getElementById('upload-status');
 
+  // Add Product Modal Elements
   const addModal = document.getElementById('add-modal');
   const addForm = document.getElementById('add-form');
+  const addPhotosList = document.getElementById('add-photos-list');
+  const addPhotoUpload = document.getElementById('add-photo-upload');
+  const addPhotoUrlInput = document.getElementById('add-photo-url-input');
+  const btnAddAddPhotoUrl = document.getElementById('btn-add-add-photo-url');
+  const addUploadStatus = document.getElementById('add-upload-status');
 
+  // Delete Product Modal Elements
   const deleteModal = document.getElementById('delete-modal');
   const deleteModalText = document.getElementById('delete-modal-text');
   const btnConfirmDelete = document.getElementById('btn-confirm-delete');
+
+  // Order Management Elements
+  const btnOpenAddOrder = document.getElementById('btn-open-add-order');
+  const addOrderModal = document.getElementById('add-order-modal');
+  const addOrderForm = document.getElementById('add-order-form');
+  const addOrderPhotosList = document.getElementById('add-order-photos-list');
+  const addOrderPhotoUpload = document.getElementById('add-order-photo-upload');
+  const addOrderPhotoUrlInput = document.getElementById('add-order-photo-url-input');
+  const btnAddOrderPhotoUrl = document.getElementById('btn-add-order-photo-url');
+  const addOrderUploadStatus = document.getElementById('add-order-upload-status');
+
+  const editOrderModal = document.getElementById('edit-order-modal');
+  const editOrderForm = document.getElementById('edit-order-form');
+  const editOrderPhotosList = document.getElementById('edit-order-photos-list');
+  const editOrderPhotoUpload = document.getElementById('edit-order-photo-upload');
+  const editOrderPhotoUrlInput = document.getElementById('edit-order-photo-url-input');
+  const btnEditOrderPhotoUrl = document.getElementById('btn-edit-order-photo-url');
+  const editOrderUploadStatus = document.getElementById('edit-order-upload-status');
+  const btnEditCurrentOrder = document.getElementById('btn-edit-current-order');
 
   // Toast Container
   const toastContainer = document.getElementById('admin-toast-container');
@@ -299,6 +328,8 @@
       const scale = escapeHtml(p.scale || '1:36');
       const frameSize = escapeHtml(p.frame_size || '15x20');
 
+      const photoCount = (Array.isArray(p.photos) && p.photos.length > 0) ? p.photos.length : ((Array.isArray(p.images) && p.images.length > 0) ? p.images.length : (p.image ? 1 : 0));
+
       return `
         <tr class="hover:bg-white/[0.03] transition-colors border-b border-white/5" data-row-id="${p.id}">
           <!-- Photo Thumbnail -->
@@ -315,6 +346,7 @@
               <span class="text-[10px] font-mono text-white/40">#${p.id}</span>
               <span class="text-[10px] font-mono text-white/40">${scale}</span>
               <span class="text-[10px] font-mono text-white/40">${frameSize}</span>
+              ${photoCount > 1 ? `<span class="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">📷 ${photoCount} Photos</span>` : ''}
             </div>
             <p class="font-bold text-xs md:text-sm text-white tracking-tight line-clamp-2 md:line-clamp-1">${title}</p>
           </td>
@@ -444,22 +476,137 @@
     openModal(editModal);
   }
 
-  function renderEditPhotos() {
-    if (!editPhotosList) return;
-    if (editingPhotos.length === 0) {
-      editPhotosList.innerHTML = `<div class="text-xs text-white/40 italic py-4">No photos added. Upload an image or enter a URL below.</div>`;
+  // ================= IMAGE UPLOAD & GALLERY HELPERS =================
+  // Canvas-based image compressor to avoid heavy multi-megabyte uploads on mobile
+  async function optimizeImageFile(file, maxDimension = 1600, quality = 0.85) {
+    if (!file || file.type === 'image/svg+xml' || file.size < 350 * 1024) {
+      return file;
+    }
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            if (blob && blob.size < file.size) {
+              const newFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
+              resolve(newFile);
+            } else {
+              resolve(file);
+            }
+          }, 'image/jpeg', quality);
+        };
+        img.onerror = () => resolve(file);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Upload single file to Supabase Storage with base64 data-URL fallback
+  async function uploadImageToStorage(file, folder = 'uploads') {
+    const optimized = await optimizeImageFile(file);
+    const fileExt = (optimized.name && optimized.name.split('.').pop()) || 'jpg';
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+    const filePath = `${folder}/${fileName}`;
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, optimized, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: optimized.type || 'image/jpeg'
+        });
+
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+      if (publicUrlData && publicUrlData.publicUrl) {
+        return publicUrlData.publicUrl;
+      }
+      throw new Error('Could not get public URL from storage');
+    } catch (err) {
+      console.warn('Storage upload fallback to Data URL:', err);
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(optimized);
+      });
+    }
+  }
+
+  // Common multi-file upload handler (supports direct array or getter function)
+  async function handleMultipleFileUpload(files, photosTarget, renderFn, statusEl, inputEl) {
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+    const photosArray = typeof photosTarget === 'function' ? photosTarget() : photosTarget;
+
+    if (!photosArray || !Array.isArray(photosArray)) return;
+
+    if (statusEl) {
+      statusEl.textContent = `Uploading ${fileList.length} photo(s)...`;
+      statusEl.classList.remove('hidden');
+    }
+
+    try {
+      for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        if (statusEl) {
+          statusEl.textContent = `Uploading photo ${i + 1} of ${fileList.length}...`;
+        }
+        const url = await uploadImageToStorage(file);
+        if (url) {
+          photosArray.push(url);
+          renderFn();
+        }
+      }
+      showToast(`${fileList.length} photo(s) added to gallery`);
+    } catch (err) {
+      console.error('Batch upload error:', err);
+      showToast('Error uploading photo: ' + err.message, 'error');
+    } finally {
+      if (statusEl) statusEl.classList.add('hidden');
+      if (inputEl) inputEl.value = '';
+    }
+  }
+
+  // Render photo gallery thumbnail list
+  function renderPhotoGalleryGrid(containerEl, photosArray, allowPrimary = true) {
+    if (!containerEl) return;
+    if (!photosArray || photosArray.length === 0) {
+      containerEl.innerHTML = `<div class="text-xs text-white/40 italic py-4 text-center w-full">No photos attached. Tap "Upload from Photo Gallery" or paste an image URL.</div>`;
       return;
     }
 
-    editPhotosList.innerHTML = editingPhotos.map((url, idx) => `
-      <div class="relative w-20 sm:w-24 bg-black border ${idx === 0 ? 'border-[var(--brand-orange)] ring-1 ring-[var(--brand-orange)]' : 'border-white/15'} flex flex-col flex-shrink-0">
+    containerEl.innerHTML = photosArray.map((url, idx) => `
+      <div class="relative w-20 sm:w-24 bg-black border ${idx === 0 && allowPrimary ? 'border-[var(--brand-orange)] ring-1 ring-[var(--brand-orange)]' : 'border-white/15'} flex flex-col flex-shrink-0">
         <div class="relative w-full h-20 sm:h-24 bg-[#050508] overflow-hidden">
           <img src="${escapeHtml(url)}" alt="Photo ${idx + 1}" class="w-full h-full object-cover" onerror="this.src='/images/logo-footer.png'" />
-          ${idx === 0 ? '<span class="absolute top-1 left-1 px-1.5 py-0.5 bg-black/90 text-[8px] font-mono text-[var(--brand-orange)] font-bold tracking-wider border border-[var(--brand-orange)]/40">PRIMARY</span>' : ''}
+          ${idx === 0 && allowPrimary ? '<span class="absolute top-1 left-1 px-1.5 py-0.5 bg-black/90 text-[8px] font-mono text-[var(--brand-orange)] font-bold tracking-wider border border-[var(--brand-orange)]/40">PRIMARY</span>' : ''}
         </div>
         
         <div class="p-1 bg-[#101015] border-t border-white/10 flex flex-col gap-1">
-          ${idx > 0 ? `
+          ${idx > 0 && allowPrimary ? `
             <button type="button" class="text-[9px] font-mono font-bold bg-white/10 hover:bg-white/20 active:bg-white/30 text-white py-1 w-full text-center transition-colors" data-photo-action="set-primary" data-index="${idx}">★ Set Main</button>
           ` : ''}
           <button type="button" class="text-[9px] font-mono font-bold bg-red-500/20 hover:bg-red-500/40 active:bg-red-500/60 text-red-300 py-1 w-full text-center transition-colors" data-photo-action="delete" data-index="${idx}">✕ Remove</button>
@@ -468,27 +615,65 @@
     `).join('');
   }
 
-  // Photo actions inside Edit Modal
-  if (editPhotosList) {
-    editPhotosList.addEventListener('click', (e) => {
+  // Setup gallery action listeners with getter support for dynamically reallocated arrays
+  function setupGalleryContainerListeners(containerEl, getPhotosArray, renderFn) {
+    if (!containerEl) return;
+    containerEl.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-photo-action]');
       if (!btn) return;
 
       const action = btn.getAttribute('data-photo-action');
       const idx = Number(btn.getAttribute('data-index'));
+      const photosArray = typeof getPhotosArray === 'function' ? getPhotosArray() : getPhotosArray;
+
+      if (!photosArray || !Array.isArray(photosArray)) return;
 
       if (action === 'delete') {
-        editingPhotos.splice(idx, 1);
-        renderEditPhotos();
+        photosArray.splice(idx, 1);
+        renderFn();
       } else if (action === 'set-primary') {
-        const [target] = editingPhotos.splice(idx, 1);
-        editingPhotos.unshift(target);
-        renderEditPhotos();
+        const [target] = photosArray.splice(idx, 1);
+        photosArray.unshift(target);
+        renderFn();
       }
     });
   }
 
-  // Add photo via URL
+  // Setup drag and drop for upload dropzones
+  function setupDropzoneEvents(dropzoneEl, fileInputEl, getPhotosArray, renderFn, statusEl) {
+    if (!dropzoneEl || !fileInputEl) return;
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropzoneEl.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzoneEl.classList.add('border-[var(--brand-orange)]', 'bg-white/[0.08]');
+      }, false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropzoneEl.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzoneEl.classList.remove('border-[var(--brand-orange)]', 'bg-white/[0.08]');
+      }, false);
+    });
+    dropzoneEl.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const files = dt ? dt.files : null;
+      if (files && files.length > 0) {
+        handleMultipleFileUpload(files, getPhotosArray, renderFn, statusEl, fileInputEl);
+      }
+    });
+  }
+
+  // ================= EDIT PRODUCT GALLERY & MODAL =================
+  function renderEditPhotos() {
+    renderPhotoGalleryGrid(editPhotosList, editingPhotos, true);
+  }
+
+  setupGalleryContainerListeners(editPhotosList, () => editingPhotos, renderEditPhotos);
+  setupDropzoneEvents(document.querySelector('label[for="edit-photo-upload"]'), editPhotoUpload, () => editingPhotos, renderEditPhotos, uploadStatus);
+
+  // Add photo via URL in Edit Modal
   if (btnAddPhotoUrl) {
     btnAddPhotoUrl.addEventListener('click', () => {
       const url = editPhotoUrlInput.value.trim();
@@ -500,56 +685,10 @@
     });
   }
 
-  // Add photo via File Upload (Supabase Storage bucket `product-images`)
+  // Add photos via Gallery / File Upload in Edit Modal (Multi-select)
   if (editPhotoUpload) {
-    editPhotoUpload.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      if (uploadStatus) {
-        uploadStatus.textContent = 'Uploading to Supabase Storage...';
-        uploadStatus.classList.remove('hidden');
-      }
-
-      try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-        const filePath = `uploads/${fileName}`;
-
-        const { data: uploadData, error: uploadErr } = await supabase.storage
-          .from('product-images')
-          .upload(filePath, file, { cacheControl: '3600', upsert: false });
-
-        if (uploadErr) {
-          console.warn('Storage upload fallback to data URL:', uploadErr);
-          const reader = new FileReader();
-          reader.onload = () => {
-            editingPhotos.push(reader.result);
-            renderEditPhotos();
-            if (uploadStatus) uploadStatus.classList.add('hidden');
-            editPhotoUpload.value = '';
-            showToast('Photo attached');
-          };
-          reader.readAsDataURL(file);
-          return;
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('product-images')
-          .getPublicUrl(filePath);
-
-        if (publicUrlData && publicUrlData.publicUrl) {
-          editingPhotos.push(publicUrlData.publicUrl);
-          renderEditPhotos();
-          showToast('Photo uploaded to Supabase Storage');
-        }
-      } catch (err) {
-        console.error('Upload failed:', err);
-        showToast('Upload error: ' + err.message, 'error');
-      } finally {
-        if (uploadStatus) uploadStatus.classList.add('hidden');
-        editPhotoUpload.value = '';
-      }
+    editPhotoUpload.addEventListener('change', (e) => {
+      handleMultipleFileUpload(e.target.files, () => editingPhotos, renderEditPhotos, uploadStatus, editPhotoUpload);
     });
   }
 
@@ -586,8 +725,8 @@
         stock,
         description,
         image: primaryImage,
-        photos: editingPhotos,
-        images: editingPhotos,
+        photos: editingPhotos.length > 0 ? editingPhotos : [primaryImage],
+        images: editingPhotos.length > 0 ? editingPhotos : [primaryImage],
         updated_at: new Date().toISOString()
       };
 
@@ -599,7 +738,6 @@
 
         if (error) throw error;
 
-        // Update local state
         const idx = currentProducts.findIndex(p => p.id === id);
         if (idx !== -1) {
           currentProducts[idx] = { ...currentProducts[idx], ...payload };
@@ -620,10 +758,39 @@
     });
   }
 
-  // ================= ADD NEW PRODUCT =================
+  // ================= ADD NEW PRODUCT GALLERY & MODAL =================
+  function renderAddPhotos() {
+    renderPhotoGalleryGrid(addPhotosList, addingPhotos, true);
+    if (addImage) {
+      addImage.value = addingPhotos[0] || '';
+    }
+  }
+
+  setupGalleryContainerListeners(addPhotosList, () => addingPhotos, renderAddPhotos);
+  setupDropzoneEvents(document.querySelector('label[for="add-photo-upload"]'), addPhotoUpload, () => addingPhotos, renderAddPhotos, addUploadStatus);
+
+  if (btnAddAddPhotoUrl) {
+    btnAddAddPhotoUrl.addEventListener('click', () => {
+      const url = addPhotoUrlInput.value.trim();
+      if (!url) return;
+      addingPhotos.push(url);
+      addPhotoUrlInput.value = '';
+      renderAddPhotos();
+      showToast('Photo added');
+    });
+  }
+
+  if (addPhotoUpload) {
+    addPhotoUpload.addEventListener('change', (e) => {
+      handleMultipleFileUpload(e.target.files, () => addingPhotos, renderAddPhotos, addUploadStatus, addPhotoUpload);
+    });
+  }
+
   if (btnOpenAdd) {
     btnOpenAdd.addEventListener('click', () => {
       addForm.reset();
+      addingPhotos = [];
+      renderAddPhotos();
       openModal(addModal);
     });
   }
@@ -641,8 +808,9 @@
       const original_price = Number(document.getElementById('add-original-price').value) || null;
       const scale = document.getElementById('add-scale').value.trim() || '1:36';
       const frame_size = document.getElementById('add-frame-size').value.trim() || '15x20';
-      const image = document.getElementById('add-image').value.trim();
       const description = document.getElementById('add-description').value.trim();
+
+      const primaryImage = addingPhotos[0] || '/images/products/placeholder.jpg';
 
       const maxId = currentProducts.reduce((max, p) => Math.max(max, Number(p.id) || 0), 0);
       const newId = maxId + 1;
@@ -658,9 +826,9 @@
         original_price,
         scale,
         frame_size,
-        image,
-        photos: [image],
-        images: [image],
+        image: primaryImage,
+        photos: addingPhotos.length > 0 ? addingPhotos : [primaryImage],
+        images: addingPhotos.length > 0 ? addingPhotos : [primaryImage],
         description,
         out_of_stock: false,
         stock: 10,
@@ -836,8 +1004,9 @@
   }
 
   function updateOrdersStats() {
+    const activeOrders = currentOrders.filter(o => (o.order_status || '').toLowerCase() !== 'cancelled');
     const total = currentOrders.length;
-    const revenue = currentOrders.reduce((sum, o) => sum + (Number(o.subtotal) || 0), 0);
+    const revenue = activeOrders.reduce((sum, o) => sum + (Number(o.subtotal) || 0), 0);
     const pending = currentOrders.filter(o => !o.order_status || o.order_status === 'Order Confirmed' || o.order_status === 'Handcrafted & Framing').length;
     const delivered = currentOrders.filter(o => (o.order_status || '').toLowerCase().includes('delivered')).length;
 
@@ -860,6 +1029,9 @@
         const cityMatch = (o.city || '').toLowerCase().includes(search);
         if (!idMatch && !nameMatch && !phoneMatch && !cityMatch) return false;
       }
+      if (status === 'active') {
+        return (o.order_status || '').toLowerCase() !== 'cancelled';
+      }
       if (status !== 'all' && o.order_status !== status) {
         return false;
       }
@@ -875,7 +1047,7 @@
       const emptyMsg = `
         <div class="py-12 text-center text-white/40 space-y-2">
           <p class="text-sm font-semibold text-white/60">No customer orders found.</p>
-          <p class="text-xs text-white/40">Verified orders will automatically appear here once customers checkout via Razorpay.</p>
+          <p class="text-xs text-white/40">Verified orders will automatically appear here once customers checkout or when created manually.</p>
         </div>
       `;
       if (ordersTableBody) ordersTableBody.innerHTML = `<tr><td colspan="6">${emptyMsg}</td></tr>`;
@@ -908,6 +1080,7 @@
           minute: '2-digit'
         });
         const items = Array.isArray(o.items) ? o.items : [];
+        const orderPhotos = (Array.isArray(o.photos) && o.photos.length > 0) ? o.photos : (Array.isArray(o.images) ? o.images : []);
 
         return `
           <div class="admin-card p-4 space-y-3.5 border-l-4 ${status === 'Delivered' ? 'border-l-emerald-500' : (status === 'Cancelled' ? 'border-l-rose-500' : 'border-l-[var(--brand-orange)]')}" data-order-card="${orderId}">
@@ -922,10 +1095,11 @@
                   </button>
                 </div>
                 <span class="text-[11px] font-mono text-white/40 block mt-0.5">${dateStr}</span>
+                ${orderPhotos.length > 0 ? `<span class="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">📸 ${orderPhotos.length} Photo${orderPhotos.length > 1 ? 's' : ''}</span>` : ''}
               </div>
               <div class="text-right">
                 <span class="font-mono font-black text-base text-emerald-400 block">₹${subtotal.toLocaleString('en-IN')}</span>
-                <span class="inline-block mt-0.5 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">PAID (Razorpay)</span>
+                <span class="inline-block mt-0.5 px-1.5 py-0.5 text-[9px] font-mono font-bold ${o.payment_status === 'PENDING' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'} uppercase">${o.payment_status || 'PAID'} (${escapeHtml(o.payment_method || 'Razorpay')})</span>
               </div>
             </div>
 
@@ -996,9 +1170,10 @@
                 <div class="flex gap-1.5">
                   <select class="admin-input text-[11px] py-1 px-1.5 select-carrier w-28" data-order-id="${orderId}">
                     <option value="Bluedart Express" ${carrier === 'Bluedart Express' ? 'selected' : ''}>Bluedart</option>
-                    <option value="Delhivery" ${carrier === 'Delhivery' ? 'selected' : ''}>Delhivery</option>
-                    <option value="DTDC Express" ${carrier === 'DTDC Express' ? 'selected' : ''}>DTDC</option>
-                    <option value="India SpeedPost" ${carrier === 'India SpeedPost' ? 'selected' : ''}>SpeedPost</option>
+                    <option value="Delhivery Surface" ${carrier.includes('Delhivery') ? 'selected' : ''}>Delhivery</option>
+                    <option value="DTDC Priority" ${carrier.includes('DTDC') ? 'selected' : ''}>DTDC</option>
+                    <option value="XpressBees" ${carrier.includes('XpressBees') ? 'selected' : ''}>XpressBees</option>
+                    <option value="India Post Speed Post" ${carrier.includes('India Post') || carrier.includes('SpeedPost') ? 'selected' : ''}>SpeedPost</option>
                   </select>
                   <input type="text" placeholder="AWB Tracking" value="${awb}" class="admin-input text-xs py-1 px-2 font-mono input-awb flex-1 min-w-0" data-order-id="${orderId}" />
                   <button type="button" class="admin-btn admin-btn-secondary px-2.5 py-1 text-[10px] font-mono btn-save-logistics" data-order-id="${orderId}">Save</button>
@@ -1006,14 +1181,17 @@
               </div>
             </div>
 
-            <!-- Bottom Actions: Track Live, Details & Delete -->
-            <div class="flex items-center justify-between pt-2 border-t border-white/10">
+            <!-- Bottom Actions: Track Live, Details, Edit & Delete -->
+            <div class="flex items-center justify-between pt-2 border-t border-white/10 flex-wrap gap-2">
               <div class="flex items-center gap-2">
-                <a href="/track.html?order_id=${orderId}" target="_blank" class="admin-btn admin-btn-secondary text-[10px] py-1 px-2.5 font-mono">
+                <a href="/track.html?order_id=${orderId}" target="_blank" class="admin-btn admin-btn-secondary text-[10px] py-1 px-2 font-mono">
                   Track Live ↗
                 </a>
-                <button type="button" class="admin-btn admin-btn-secondary text-[10px] py-1 px-2.5 font-mono btn-view-order-details" data-order-id="${orderId}">
+                <button type="button" class="admin-btn admin-btn-secondary text-[10px] py-1 px-2 font-mono btn-view-order-details" data-order-id="${orderId}">
                   Full Receipt ☌
+                </button>
+                <button type="button" class="admin-btn admin-btn-secondary text-[10px] py-1 px-2 font-mono btn-edit-order" data-order-id="${orderId}">
+                  Edit ✏️
                 </button>
               </div>
 
@@ -1050,8 +1228,8 @@
           hour: '2-digit',
           minute: '2-digit'
         });
-
         const items = Array.isArray(o.items) ? o.items : [];
+        const orderPhotos = (Array.isArray(o.photos) && o.photos.length > 0) ? o.photos : (Array.isArray(o.images) ? o.images : []);
 
         return `
           <tr class="hover:bg-white/[0.03] transition-colors border-b border-white/5" data-order-row="${orderId}">
@@ -1064,7 +1242,8 @@
                 </button>
               </div>
               <span class="text-[11px] font-mono text-white/40 block mt-0.5">${dateStr}</span>
-              <span class="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">PAID (Razorpay)</span>
+              <span class="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-mono font-bold ${o.payment_status === 'PENDING' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}">${o.payment_status || 'PAID'} (${escapeHtml(o.payment_method || 'Razorpay')})</span>
+              ${orderPhotos.length > 0 ? `<div class="mt-1"><span class="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">📸 ${orderPhotos.length} Photo${orderPhotos.length > 1 ? 's' : ''}</span></div>` : ''}
             </td>
 
             <!-- Customer & Address -->
@@ -1121,9 +1300,10 @@
                 <div class="flex gap-1.5">
                   <select class="admin-input text-[11px] py-1 px-1.5 select-carrier flex-1" data-order-id="${orderId}">
                     <option value="Bluedart Express" ${carrier === 'Bluedart Express' ? 'selected' : ''}>Bluedart</option>
-                    <option value="Delhivery" ${carrier === 'Delhivery' ? 'selected' : ''}>Delhivery</option>
-                    <option value="DTDC Express" ${carrier === 'DTDC Express' ? 'selected' : ''}>DTDC</option>
-                    <option value="India SpeedPost" ${carrier === 'India SpeedPost' ? 'selected' : ''}>SpeedPost</option>
+                    <option value="Delhivery Surface" ${carrier.includes('Delhivery') ? 'selected' : ''}>Delhivery</option>
+                    <option value="DTDC Priority" ${carrier.includes('DTDC') ? 'selected' : ''}>DTDC</option>
+                    <option value="XpressBees" ${carrier.includes('XpressBees') ? 'selected' : ''}>XpressBees</option>
+                    <option value="India Post Speed Post" ${carrier.includes('India Post') || carrier.includes('SpeedPost') ? 'selected' : ''}>SpeedPost</option>
                   </select>
                   <button type="button" class="px-2 py-1 text-[10px] font-bold uppercase bg-white/10 hover:bg-white/20 text-white border border-white/20 btn-save-logistics" data-order-id="${orderId}">
                     Save
@@ -1140,6 +1320,9 @@
                 </a>
                 <button type="button" class="px-2 py-1 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-colors btn-view-order-details" data-order-id="${orderId}" title="View Full Order Receipt">
                   View
+                </button>
+                <button type="button" class="px-2 py-1 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-colors btn-edit-order" data-order-id="${orderId}" title="Edit Order & Photos">
+                  Edit
                 </button>
                 <button type="button" class="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition-colors btn-delete-order" data-order-id="${orderId}" title="Delete Order">
                   <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -1185,7 +1368,7 @@
       }
     });
 
-    // 2. Save logistics / AWB listener
+    // 2. Save logistics / AWB, View, Edit, Delete listener
     ordersTabContainer.addEventListener('click', async (e) => {
       // Save Logistics
       const btnSaveLogistics = e.target.closest('.btn-save-logistics');
@@ -1258,6 +1441,15 @@
         return;
       }
 
+      // Edit Order Modal
+      const btnEditOrder = e.target.closest('.btn-edit-order');
+      if (btnEditOrder) {
+        const orderId = btnEditOrder.getAttribute('data-order-id');
+        const order = currentOrders.find(o => o.order_id === orderId);
+        if (order) openEditOrderModal(order);
+        return;
+      }
+
       // Delete Order
       const btnDelete = e.target.closest('.btn-delete-order');
       if (btnDelete) {
@@ -1301,6 +1493,247 @@
     });
   }
 
+  // Edit order from inside the detail modal
+  if (btnEditCurrentOrder) {
+    btnEditCurrentOrder.addEventListener('click', () => {
+      const orderId = detailModalOrderId.textContent;
+      const order = currentOrders.find(o => o.order_id === orderId);
+      if (order) {
+        closeModal(orderDetailModal);
+        openEditOrderModal(order);
+      }
+    });
+  }
+
+  // ================= ADD MANUAL ORDER GALLERY & MODAL =================
+  function renderAddOrderPhotos() {
+    renderPhotoGalleryGrid(addOrderPhotosList, addOrderPhotos, false);
+  }
+
+  setupGalleryContainerListeners(addOrderPhotosList, () => addOrderPhotos, renderAddOrderPhotos);
+  setupDropzoneEvents(document.querySelector('label[for="add-order-photo-upload"]'), addOrderPhotoUpload, () => addOrderPhotos, renderAddOrderPhotos, addOrderUploadStatus);
+
+  if (btnAddOrderPhotoUrl) {
+    btnAddOrderPhotoUrl.addEventListener('click', () => {
+      const url = addOrderPhotoUrlInput.value.trim();
+      if (!url) return;
+      addOrderPhotos.push(url);
+      addOrderPhotoUrlInput.value = '';
+      renderAddOrderPhotos();
+      showToast('Photo added to order');
+    });
+  }
+
+  if (addOrderPhotoUpload) {
+    addOrderPhotoUpload.addEventListener('change', (e) => {
+      handleMultipleFileUpload(e.target.files, () => addOrderPhotos, renderAddOrderPhotos, addOrderUploadStatus, addOrderPhotoUpload);
+    });
+  }
+
+  if (btnOpenAddOrder) {
+    btnOpenAddOrder.addEventListener('click', () => {
+      if (addOrderForm) addOrderForm.reset();
+      addOrderPhotos = [];
+      renderAddOrderPhotos();
+      openModal(addOrderModal);
+    });
+  }
+
+  if (addOrderForm) {
+    addOrderForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('btn-save-add-order');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Creating...';
+
+      const customer_name = document.getElementById('add-order-name').value.trim();
+      const customer_phone = document.getElementById('add-order-phone').value.trim();
+      const customer_email = document.getElementById('add-order-email').value.trim() || null;
+      const shipping_address = document.getElementById('add-order-address').value.trim();
+      const city = document.getElementById('add-order-city').value.trim();
+      const state = document.getElementById('add-order-state').value.trim() || '';
+      const pincode = document.getElementById('add-order-pincode').value.trim();
+      const itemTitle = document.getElementById('add-order-item-title').value.trim();
+      const itemScale = document.getElementById('add-order-item-scale').value.trim() || '1:36 (15x20cm)';
+      const subtotal = Number(document.getElementById('add-order-total').value) || 599;
+      const payment_method = document.getElementById('add-order-payment-method').value;
+      const payment_status = document.getElementById('add-order-payment-status').value;
+      const order_status = document.getElementById('add-order-status').value;
+      const notes = document.getElementById('add-order-notes').value.trim() || null;
+
+      const order_id = `GW-ORD-${Date.now().toString().slice(-6)}`;
+      const items = [{
+        name: itemTitle,
+        scale: itemScale,
+        quantity: 1,
+        price: subtotal,
+        image: addOrderPhotos[0] || '/images/logo-footer.png'
+      }];
+
+      const newOrder = {
+        order_id,
+        customer_name,
+        customer_phone,
+        customer_email,
+        shipping_address,
+        city,
+        state,
+        pincode,
+        items,
+        subtotal,
+        payment_method,
+        payment_status,
+        payment_id: payment_method === 'razorpay' ? `pay_manual_${Date.now()}` : `${payment_method.toUpperCase()}_DIRECT`,
+        order_status,
+        courier_partner: 'Bluedart Express',
+        tracking_number: null,
+        notes,
+        photos: addOrderPhotos,
+        images: addOrderPhotos,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .insert([newOrder])
+          .select();
+
+        if (error) throw error;
+
+        currentOrders.unshift(data && data[0] ? data[0] : newOrder);
+        renderOrdersTable();
+        updateOrdersStats();
+        closeModal(addOrderModal);
+        showToast(`Created Order #${order_id} successfully!`);
+      } catch (err) {
+        console.error('Insert order failed:', err);
+        showToast('Failed to create order: ' + err.message, 'error');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Create Order';
+      }
+    });
+  }
+
+  // ================= EDIT ORDER GALLERY & MODAL =================
+  function renderEditOrderPhotos() {
+    renderPhotoGalleryGrid(editOrderPhotosList, editOrderPhotos, false);
+  }
+
+  setupGalleryContainerListeners(editOrderPhotosList, () => editOrderPhotos, renderEditOrderPhotos);
+  setupDropzoneEvents(document.querySelector('label[for="edit-order-photo-upload"]'), editOrderPhotoUpload, () => editOrderPhotos, renderEditOrderPhotos, editOrderUploadStatus);
+
+  if (btnEditOrderPhotoUrl) {
+    btnEditOrderPhotoUrl.addEventListener('click', () => {
+      const url = editOrderPhotoUrlInput.value.trim();
+      if (!url) return;
+      editOrderPhotos.push(url);
+      editOrderPhotoUrlInput.value = '';
+      renderEditOrderPhotos();
+      showToast('Photo added to order');
+    });
+  }
+
+  if (editOrderPhotoUpload) {
+    editOrderPhotoUpload.addEventListener('change', (e) => {
+      handleMultipleFileUpload(e.target.files, () => editOrderPhotos, renderEditOrderPhotos, editOrderUploadStatus, editOrderPhotoUpload);
+    });
+  }
+
+  function openEditOrderModal(order) {
+    if (!editOrderModal) return;
+    document.getElementById('edit-order-id').value = order.order_id;
+    document.getElementById('edit-order-id-badge').textContent = order.order_id;
+    document.getElementById('edit-order-name').value = order.customer_name || '';
+    document.getElementById('edit-order-phone').value = order.customer_phone || '';
+    document.getElementById('edit-order-email').value = order.customer_email || '';
+    document.getElementById('edit-order-address').value = order.shipping_address || '';
+    document.getElementById('edit-order-city').value = order.city || '';
+    document.getElementById('edit-order-state').value = order.state || '';
+    document.getElementById('edit-order-pincode').value = order.pincode || '';
+    document.getElementById('edit-order-status').value = order.order_status || 'Order Confirmed';
+    document.getElementById('edit-order-courier').value = order.courier_partner || 'Bluedart Express';
+    document.getElementById('edit-order-tracking').value = order.tracking_number || '';
+    document.getElementById('edit-order-notes').value = order.notes || '';
+
+    // Initialize Order Photos
+    if (Array.isArray(order.photos) && order.photos.length > 0) {
+      editOrderPhotos = [...order.photos];
+    } else if (Array.isArray(order.images) && order.images.length > 0) {
+      editOrderPhotos = [...order.images];
+    } else {
+      editOrderPhotos = [];
+    }
+
+    renderEditOrderPhotos();
+    openModal(editOrderModal);
+  }
+
+  if (editOrderForm) {
+    editOrderForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('btn-save-edit-order');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
+      const orderId = document.getElementById('edit-order-id').value;
+      const customer_name = document.getElementById('edit-order-name').value.trim();
+      const customer_phone = document.getElementById('edit-order-phone').value.trim();
+      const customer_email = document.getElementById('edit-order-email').value.trim() || null;
+      const shipping_address = document.getElementById('edit-order-address').value.trim();
+      const city = document.getElementById('edit-order-city').value.trim();
+      const state = document.getElementById('edit-order-state').value.trim() || null;
+      const pincode = document.getElementById('edit-order-pincode').value.trim();
+      const order_status = document.getElementById('edit-order-status').value;
+      const courier_partner = document.getElementById('edit-order-courier').value;
+      const tracking_number = document.getElementById('edit-order-tracking').value.trim() || null;
+      const notes = document.getElementById('edit-order-notes').value.trim() || null;
+
+      const payload = {
+        customer_name,
+        customer_phone,
+        customer_email,
+        shipping_address,
+        city,
+        state,
+        pincode,
+        order_status,
+        courier_partner,
+        tracking_number,
+        notes,
+        photos: editOrderPhotos,
+        images: editOrderPhotos,
+        updated_at: new Date().toISOString()
+      };
+
+      try {
+        const { error } = await supabase
+          .from('orders')
+          .update(payload)
+          .eq('order_id', orderId);
+
+        if (error) throw error;
+
+        const idx = currentOrders.findIndex(o => o.order_id === orderId);
+        if (idx !== -1) {
+          currentOrders[idx] = { ...currentOrders[idx], ...payload };
+        }
+        renderOrdersTable();
+        updateOrdersStats();
+        closeModal(editOrderModal);
+        showToast(`Order #${orderId} updated successfully`);
+      } catch (err) {
+        console.error('Update order failed:', err);
+        showToast('Failed to update order: ' + err.message, 'error');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Order';
+      }
+    });
+  }
+
   // Open Order Details Modal
   function openOrderDetailModal(order) {
     if (!orderDetailModal || !orderDetailBody) return;
@@ -1320,6 +1753,7 @@
     });
     const phone = escapeHtml(order.customer_phone || '');
     const cleanPhone = phone.replace(/[^0-9]/g, '').slice(-10);
+    const orderPhotos = (Array.isArray(order.photos) && order.photos.length > 0) ? order.photos : (Array.isArray(order.images) ? order.images : []);
 
     orderDetailBody.innerHTML = `
       <!-- Order Summary Card -->
@@ -1364,11 +1798,11 @@
       <!-- Payment & Security -->
       <div class="p-3.5 bg-white/[0.02] border border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
         <div>
-          <span class="text-[10px] font-mono uppercase text-white/50 block mb-0.5">Razorpay Reference ID</span>
+          <span class="text-[10px] font-mono uppercase text-white/50 block mb-0.5">Payment Reference</span>
           <code class="text-xs text-white/80 font-mono bg-black/50 px-2 py-1 border border-white/10">${escapeHtml(order.payment_id || 'N/A')}</code>
         </div>
         <div class="flex items-center gap-2">
-          <span class="px-2 py-1 bg-emerald-500/20 text-emerald-400 font-mono text-xs font-bold border border-emerald-500/30">PAID & VERIFIED</span>
+          <span class="px-2 py-1 ${order.payment_status === 'PENDING' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'} font-mono text-xs font-bold border">${order.payment_status || 'PAID'} (${escapeHtml(order.payment_method || 'Razorpay')})</span>
         </div>
       </div>
 
@@ -1392,6 +1826,21 @@
           `).join('')}
         </div>
       </div>
+
+      ${orderPhotos.length > 0 ? `
+        <!-- Customer & Frame Gallery Photos -->
+        <div class="space-y-2">
+          <span class="text-[10px] font-mono uppercase tracking-wider text-white/50 block font-bold">Attached Customer & Frame Photos (${orderPhotos.length}):</span>
+          <div class="flex flex-wrap gap-2.5 max-h-48 overflow-y-auto p-2.5 bg-[#060609] border border-white/10">
+            ${orderPhotos.map((photoUrl, pIdx) => `
+              <a href="${photoUrl}" target="_blank" class="w-16 h-16 sm:w-20 sm:h-20 bg-black border border-white/15 block overflow-hidden hover:border-[var(--brand-orange)] transition-colors relative group">
+                <img src="${escapeHtml(photoUrl)}" alt="Order Photo ${pIdx + 1}" class="w-full h-full object-cover" />
+                <span class="absolute bottom-0 inset-x-0 bg-black/80 text-[8px] font-mono text-center text-white/80 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">View ↗</span>
+              </a>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
 
       <!-- Current Tracking Status in Detail Modal -->
       <div class="p-3.5 bg-white/[0.02] border border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
