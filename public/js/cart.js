@@ -21,7 +21,7 @@
 
   const STORAGE_KEY = '3dgearwall_cart_v2';
   const LEGACY_STORAGE_KEY = '3dgearwall_cart';
-  const RAZORPAY_KEY = 'rzp_test_PLACEHOLDER'; // Replace with live key
+  const RAZORPAY_KEY = 'rzp_live_TZY82TryPMFHto';
 
   // Dynamic storage loader & syncer
   function getCart() {
