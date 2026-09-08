@@ -69,6 +69,7 @@
 
   // ================= TOAST NOTIFICATIONS =================
   function showToast(message, type = 'success') {
+    if (!toastContainer) return;
     const toast = document.createElement('div');
     toast.className = `admin-toast ${type === 'error' ? 'admin-toast-error' : ''}`;
     toast.innerHTML = `
@@ -93,30 +94,49 @@
     });
   }
 
+  // ================= MODAL HELPER FUNCTIONS =================
+  function openModal(modalEl) {
+    if (!modalEl) return;
+    modalEl.classList.add('open', 'active');
+  }
+
+  function closeModal(modalEl) {
+    if (!modalEl) return;
+    modalEl.classList.remove('open', 'active');
+  }
+
   // ================= AUTH INITIALIZATION =================
   async function initAuth() {
-    const { data: { session } } = await supabase.auth.getSession();
-    handleSessionChange(session);
-
-    supabase.auth.onAuthStateChange((event, session) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
       handleSessionChange(session);
-    });
+
+      supabase.auth.onAuthStateChange((event, session) => {
+        handleSessionChange(session);
+      });
+    } catch (e) {
+      console.error('Auth check error:', e);
+    }
   }
 
   function handleSessionChange(session) {
     if (session && session.user) {
-      authView.classList.add('hidden');
-      dashboardView.classList.remove('hidden');
-      navUserInfo.classList.remove('hidden');
-      navUserInfo.classList.add('flex');
-      navUserEmail.textContent = session.user.email || 'Admin';
+      if (authView) authView.classList.add('hidden');
+      if (dashboardView) dashboardView.classList.remove('hidden');
+      if (navUserInfo) {
+        navUserInfo.classList.remove('hidden');
+        navUserInfo.classList.add('flex');
+      }
+      if (navUserEmail) navUserEmail.textContent = session.user.email || 'Admin';
       loadProducts();
     } else {
-      authView.classList.remove('hidden');
-      dashboardView.classList.add('hidden');
-      navUserInfo.classList.add('hidden');
-      navUserInfo.classList.remove('flex');
-      navUserEmail.textContent = '';
+      if (authView) authView.classList.remove('hidden');
+      if (dashboardView) dashboardView.classList.add('hidden');
+      if (navUserInfo) {
+        navUserInfo.classList.add('hidden');
+        navUserInfo.classList.remove('flex');
+      }
+      if (navUserEmail) navUserEmail.textContent = '';
     }
   }
 
@@ -166,12 +186,13 @@
 
   // ================= DATA LOADING & RENDERING =================
   async function loadProducts() {
+    if (!tableBody) return;
     tableBody.innerHTML = `
       <tr>
         <td colspan="5" class="py-12 text-center text-white/40">
           <div class="inline-flex items-center gap-2">
             <svg class="animate-spin h-4 w-4 text-white/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-            <span>Loading inventory catalog...</span>
+            <span>Loading inventory catalog from Supabase...</span>
           </div>
         </td>
       </tr>
@@ -208,13 +229,14 @@
     const outStock = currentProducts.filter(p => p.out_of_stock).length;
     const uniqueBrands = new Set(currentProducts.map(p => p.brand).filter(Boolean));
 
-    statTotal.textContent = total;
-    statInStock.textContent = inStock;
-    statOutStock.textContent = outStock;
-    statBrands.textContent = uniqueBrands.size;
+    if (statTotal) statTotal.textContent = total;
+    if (statInStock) statInStock.textContent = inStock;
+    if (statOutStock) statOutStock.textContent = outStock;
+    if (statBrands) statBrands.textContent = uniqueBrands.size;
   }
 
   function populateBrandFilter() {
+    if (!filterBrand) return;
     const brands = Array.from(new Set(currentProducts.map(p => p.brand).filter(Boolean))).sort();
     const currentVal = filterBrand.value;
     filterBrand.innerHTML = `<option value="all">All Brands (${currentProducts.length})</option>`;
@@ -231,23 +253,20 @@
   }
 
   function getFilteredProducts() {
-    const search = searchInput.value.trim().toLowerCase();
-    const brand = filterBrand.value;
-    const stock = filterStock.value;
+    const search = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const brand = filterBrand ? filterBrand.value : 'all';
+    const stock = filterStock ? filterStock.value : 'all';
 
     return currentProducts.filter(p => {
-      // Search
       if (search) {
         const titleMatch = (p.title || p.name || '').toLowerCase().includes(search);
         const brandMatch = (p.brand || '').toLowerCase().includes(search);
         const idMatch = String(p.id).includes(search);
         if (!titleMatch && !brandMatch && !idMatch) return false;
       }
-      // Brand
       if (brand !== 'all' && p.brand !== brand) {
         return false;
       }
-      // Stock
       if (stock === 'in' && p.out_of_stock) return false;
       if (stock === 'out' && !p.out_of_stock) return false;
 
@@ -256,6 +275,7 @@
   }
 
   function renderTable() {
+    if (!tableBody) return;
     const filtered = getFilteredProducts();
 
     if (filtered.length === 0) {
@@ -272,7 +292,7 @@
     tableBody.innerHTML = filtered.map(p => {
       const title = escapeHtml(p.title || p.name || 'Untitled Frame');
       const brand = escapeHtml(p.brand || 'Unbranded');
-      const image = p.image || (Array.isArray(p.photos) && p.photos[0]) || '/images/products/placeholder.jpg';
+      const image = p.image || (Array.isArray(p.photos) && p.photos[0]) || (Array.isArray(p.images) && p.images[0]) || '/images/products/placeholder.jpg';
       const price = Number(p.price) || 0;
       const origPrice = Number(p.original_price) || 0;
       const isOutOfStock = Boolean(p.out_of_stock);
@@ -280,33 +300,33 @@
       const frameSize = escapeHtml(p.frame_size || '15x20');
 
       return `
-        <tr class="hover:bg-white/[0.02] transition-colors" data-row-id="${p.id}">
+        <tr class="hover:bg-white/[0.03] transition-colors border-b border-white/5" data-row-id="${p.id}">
           <!-- Photo Thumbnail -->
-          <td class="py-3.5 px-4">
-            <div class="w-12 h-12 bg-black border border-white/10 overflow-hidden flex items-center justify-center relative group">
+          <td class="py-3 px-3 md:px-4 w-16">
+            <div class="w-12 h-12 bg-black border border-white/10 overflow-hidden flex items-center justify-center flex-shrink-0">
               <img src="${escapeHtml(image)}" alt="${title}" class="w-full h-full object-cover" onerror="this.src='/images/logo-footer.png'" />
             </div>
           </td>
 
           <!-- Title & Details -->
-          <td class="py-3.5 px-4">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="px-1.5 py-0.5 text-[10px] font-mono font-bold uppercase bg-white/10 text-white/70 border border-white/15">${brand}</span>
+          <td class="py-3 px-3 md:px-4">
+            <div class="flex flex-wrap items-center gap-1.5 mb-1">
+              <span class="px-1.5 py-0.5 text-[10px] font-mono font-bold uppercase bg-white/10 text-white/80 border border-white/15">${brand}</span>
               <span class="text-[10px] font-mono text-white/40">#${p.id}</span>
               <span class="text-[10px] font-mono text-white/40">${scale}</span>
               <span class="text-[10px] font-mono text-white/40">${frameSize}</span>
             </div>
-            <p class="font-bold text-sm text-white tracking-tight line-clamp-1">${title}</p>
+            <p class="font-bold text-xs md:text-sm text-white tracking-tight line-clamp-2 md:line-clamp-1">${title}</p>
           </td>
 
           <!-- Price -->
-          <td class="py-3.5 px-4 whitespace-nowrap">
-            <div class="font-mono font-black text-sm text-white">₹${price.toLocaleString('en-IN')}</div>
-            ${origPrice > price ? `<div class="text-[11px] font-mono text-white/40 line-through">₹${origPrice.toLocaleString('en-IN')}</div>` : ''}
+          <td class="py-3 px-3 md:px-4 whitespace-nowrap">
+            <div class="font-mono font-black text-xs md:text-sm text-white">₹${price.toLocaleString('en-IN')}</div>
+            ${origPrice > price ? `<div class="text-[10px] font-mono text-white/40 line-through">₹${origPrice.toLocaleString('en-IN')}</div>` : ''}
           </td>
 
           <!-- Stock Status Toggle Button -->
-          <td class="py-3.5 px-4 whitespace-nowrap">
+          <td class="py-3 px-3 md:px-4 whitespace-nowrap">
             <button 
               type="button" 
               class="stock-toggle-btn ${isOutOfStock ? 'badge-out' : 'badge-in'}" 
@@ -320,15 +340,15 @@
           </td>
 
           <!-- Actions -->
-          <td class="py-3.5 px-4 text-right whitespace-nowrap">
+          <td class="py-3 px-3 md:px-4 text-right whitespace-nowrap">
             <div class="inline-flex items-center gap-1.5">
-              <a href="/product/${p.id}.html" target="_blank" class="p-1.5 text-white/60 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors" title="View live product page">
+              <a href="/product/${p.id}.html" target="_blank" class="p-1.5 text-white/60 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors" title="View live page">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
               </a>
               <button type="button" class="px-2.5 py-1 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-colors" data-action="edit" data-id="${p.id}">
                 Edit
               </button>
-              <button type="button" class="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition-colors" data-action="delete" data-id="${p.id}" title="Delete Product">
+              <button type="button" class="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition-colors" data-action="delete" data-id="${p.id}" title="Delete Product">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
               </button>
             </div>
@@ -398,7 +418,7 @@
   // ================= EDIT PRODUCT MODAL =================
   function openEditModal(product) {
     document.getElementById('edit-id').value = product.id;
-    document.getElementById('edit-modal-id-badge').textContent = `ID: #${product.id} • Slug: ${product.slug || product.id}`;
+    document.getElementById('edit-modal-id-badge').textContent = `ID: #${product.id}`;
     document.getElementById('edit-name').value = product.title || product.name || '';
     document.getElementById('edit-brand').value = product.brand || '';
     document.getElementById('edit-price').value = product.price || '';
@@ -409,9 +429,11 @@
     document.getElementById('edit-stock').value = product.stock !== undefined && product.stock !== null ? product.stock : 10;
     document.getElementById('edit-description').value = product.description || '';
 
-    // Initialize Photos array
+    // Initialize Photos array (check both photos and images)
     if (Array.isArray(product.photos) && product.photos.length > 0) {
       editingPhotos = [...product.photos];
+    } else if (Array.isArray(product.images) && product.images.length > 0) {
+      editingPhotos = [...product.images];
     } else if (product.image) {
       editingPhotos = [product.image];
     } else {
@@ -419,26 +441,27 @@
     }
 
     renderEditPhotos();
-    editModal.classList.add('active');
+    openModal(editModal);
   }
 
   function renderEditPhotos() {
+    if (!editPhotosList) return;
     if (editingPhotos.length === 0) {
-      editPhotosList.innerHTML = `<div class="text-xs text-white/40 italic py-4">No photos yet. Add via upload or image URL below.</div>`;
+      editPhotosList.innerHTML = `<div class="text-xs text-white/40 italic py-4">No photos added. Upload an image or enter a URL below.</div>`;
       return;
     }
 
     editPhotosList.innerHTML = editingPhotos.map((url, idx) => `
-      <div class="relative w-20 h-20 bg-black border ${idx === 0 ? 'border-[var(--brand-orange)] ring-1 ring-[var(--brand-orange)]' : 'border-white/15'} group">
+      <div class="relative w-20 h-20 bg-black border ${idx === 0 ? 'border-[var(--brand-orange)] ring-1 ring-[var(--brand-orange)]' : 'border-white/15'} group flex-shrink-0">
         <img src="${escapeHtml(url)}" alt="Photo ${idx + 1}" class="w-full h-full object-cover" onerror="this.src='/images/logo-footer.png'" />
         
         ${idx === 0 ? '<span class="absolute top-1 left-1 px-1 py-0.5 bg-black/80 text-[9px] font-mono text-[var(--brand-orange)] font-bold">PRIMARY</span>' : ''}
         
-        <div class="absolute inset-0 bg-black/75 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
+        <div class="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
           ${idx > 0 ? `
-            <button type="button" class="text-[9px] font-mono bg-white/20 hover:bg-white/40 text-white px-1 py-0.5 w-full" data-photo-action="set-primary" data-index="${idx}">Primary</button>
+            <button type="button" class="text-[9px] font-mono bg-white/20 hover:bg-white/40 text-white px-1 py-0.5 w-full text-center" data-photo-action="set-primary" data-index="${idx}">Set Main</button>
           ` : ''}
-          <button type="button" class="text-[9px] font-mono bg-red-500/80 hover:bg-red-500 text-white px-1 py-0.5 w-full" data-photo-action="delete" data-index="${idx}">Remove</button>
+          <button type="button" class="text-[9px] font-mono bg-red-500/80 hover:bg-red-500 text-white px-1 py-0.5 w-full text-center" data-photo-action="delete" data-index="${idx}">Remove</button>
         </div>
       </div>
     `).join('');
@@ -482,8 +505,10 @@
       const file = e.target.files[0];
       if (!file) return;
 
-      uploadStatus.textContent = 'Uploading to Supabase Storage...';
-      uploadStatus.classList.remove('hidden');
+      if (uploadStatus) {
+        uploadStatus.textContent = 'Uploading to Supabase Storage...';
+        uploadStatus.classList.remove('hidden');
+      }
 
       try {
         const fileExt = file.name.split('.').pop();
@@ -495,15 +520,14 @@
           .upload(filePath, file, { cacheControl: '3600', upsert: false });
 
         if (uploadErr) {
-          console.warn('Storage upload note:', uploadErr);
-          // If storage bucket is not configured for direct upload, use FileReader base64 as portable data URL
+          console.warn('Storage upload fallback to data URL:', uploadErr);
           const reader = new FileReader();
           reader.onload = () => {
             editingPhotos.push(reader.result);
             renderEditPhotos();
-            uploadStatus.classList.add('hidden');
+            if (uploadStatus) uploadStatus.classList.add('hidden');
             editPhotoUpload.value = '';
-            showToast('Photo loaded (Data URL)');
+            showToast('Photo attached');
           };
           reader.readAsDataURL(file);
           return;
@@ -516,13 +540,13 @@
         if (publicUrlData && publicUrlData.publicUrl) {
           editingPhotos.push(publicUrlData.publicUrl);
           renderEditPhotos();
-          showToast('Photo uploaded successfully');
+          showToast('Photo uploaded to Supabase Storage');
         }
       } catch (err) {
         console.error('Upload failed:', err);
         showToast('Upload error: ' + err.message, 'error');
       } finally {
-        uploadStatus.classList.add('hidden');
+        if (uploadStatus) uploadStatus.classList.add('hidden');
         editPhotoUpload.value = '';
       }
     });
@@ -562,6 +586,7 @@
         description,
         image: primaryImage,
         photos: editingPhotos,
+        images: editingPhotos,
         updated_at: new Date().toISOString()
       };
 
@@ -582,7 +607,7 @@
         renderTable();
         updateDashboardStats();
         populateBrandFilter();
-        editModal.classList.remove('active');
+        closeModal(editModal);
         showToast(`Product #${id} updated successfully`);
       } catch (err) {
         console.error('Update failed:', err);
@@ -598,7 +623,7 @@
   if (btnOpenAdd) {
     btnOpenAdd.addEventListener('click', () => {
       addForm.reset();
-      addModal.classList.add('active');
+      openModal(addModal);
     });
   }
 
@@ -618,7 +643,6 @@
       const image = document.getElementById('add-image').value.trim();
       const description = document.getElementById('add-description').value.trim();
 
-      // Find next safe ID
       const maxId = currentProducts.reduce((max, p) => Math.max(max, Number(p.id) || 0), 0);
       const newId = maxId + 1;
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -635,11 +659,12 @@
         frame_size,
         image,
         photos: [image],
+        images: [image],
         description,
         out_of_stock: false,
         stock: 10,
-        rating: 4.9,
-        reviews_count: 0
+        featured: true,
+        is_active: true
       };
 
       try {
@@ -654,7 +679,7 @@
         renderTable();
         updateDashboardStats();
         populateBrandFilter();
-        addModal.classList.remove('active');
+        closeModal(addModal);
         showToast(`Created new product #${newId}: ${title}`);
       } catch (err) {
         console.error('Insert failed:', err);
@@ -669,8 +694,8 @@
   // ================= DELETE PRODUCT =================
   function openDeleteModal(product) {
     pendingDeleteId = product.id;
-    deleteModalText.textContent = `Are you sure you want to delete "#${product.id} - ${product.title || product.name}"? This will permanently remove it from Supabase.`;
-    deleteModal.classList.add('active');
+    deleteModalText.textContent = `Are you sure you want to delete "#${product.id} - ${product.title || product.name}"? This action cannot be undone.`;
+    openModal(deleteModal);
   }
 
   if (btnConfirmDelete) {
@@ -692,7 +717,7 @@
         renderTable();
         updateDashboardStats();
         populateBrandFilter();
-        deleteModal.classList.remove('active');
+        closeModal(deleteModal);
         showToast(`Product #${pendingDeleteId} deleted`);
       } catch (err) {
         console.error('Delete failed:', err);
@@ -710,20 +735,20 @@
     btn.addEventListener('click', () => {
       const modalId = btn.getAttribute('data-modal');
       const modal = document.getElementById(modalId) || btn.closest('.admin-modal-backdrop');
-      if (modal) modal.classList.remove('active');
+      closeModal(modal);
     });
   });
 
   document.querySelectorAll('.admin-modal-backdrop').forEach(modal => {
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.classList.remove('active');
+      if (e.target === modal) closeModal(modal);
     });
   });
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      document.querySelectorAll('.admin-modal-backdrop.active').forEach(modal => {
-        modal.classList.remove('active');
+      document.querySelectorAll('.admin-modal-backdrop.open, .admin-modal-backdrop.active').forEach(modal => {
+        closeModal(modal);
       });
     }
   });
