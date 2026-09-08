@@ -17,5 +17,9 @@
     "f1-frames"
   ],
   "author": "3D Gear Wall",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "pg": "^8.23.0"
+  }
 }
