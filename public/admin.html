@@ -21,24 +21,24 @@
 <body class="bg-[#09090d] text-white font-barlow antialiased selection:bg-white selection:text-black">
 
   <!-- ================= TOP NAVIGATION BAR ================= -->
-  <header class="sticky top-0 z-40 bg-[#0d0d12]/95 backdrop-blur-md border-b border-white/10 px-4 md:px-8 py-3.5 flex items-center justify-between">
-    <div class="flex items-center gap-4">
+  <header class="admin-navbar sticky top-0 z-50 bg-[#0a0a0e] border-b border-white/10 px-4 md:px-8 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
       <a href="/index.html" class="flex items-center gap-3 select-none group" aria-label="3D Gear Wall">
-        <img src="/images/logo-footer.png?v=5" onerror="this.src='/logo-footer.png'" alt="3D Gear Wall" class="h-8 md:h-9 w-auto object-contain" />
+        <img src="/images/logo-footer.png?v=5" onerror="this.src='/logo-footer.png'" alt="3D Gear Wall" class="h-7 sm:h-8 md:h-9 w-auto object-contain" />
       </a>
-      <span class="px-2.5 py-0.5 text-[10px] font-mono font-bold tracking-widest uppercase bg-white/10 text-white/80 border border-white/15">Admin Console</span>
+      <span class="px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold tracking-widest uppercase bg-white/10 text-white/80 border border-white/15 whitespace-nowrap">Admin Console</span>
     </div>
 
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2 sm:gap-3">
       <a href="/collections.html" target="_blank" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white/70 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
         <span>Live Store</span>
       </a>
 
       <!-- User profile & Logout (shown when authenticated) -->
-      <div id="nav-user-info" class="hidden flex items-center gap-3 pl-3 border-l border-white/10">
-        <span id="nav-user-email" class="text-xs font-mono text-white/60 hidden md:inline"></span>
-        <button id="btn-logout" class="px-3 py-1.5 text-xs font-semibold text-white bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 transition-colors">
+      <div id="nav-user-info" class="hidden flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-white/10">
+        <span id="nav-user-email" class="text-xs font-mono text-white/60 hidden lg:inline max-w-[180px] truncate"></span>
+        <button id="btn-logout" class="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-white bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 transition-colors whitespace-nowrap">
           Sign Out
         </button>
       </div>
@@ -268,110 +268,113 @@
   <!-- ================= EDIT PRODUCT MODAL ================= -->
   <div id="edit-modal" class="admin-modal-backdrop">
     <div class="admin-modal-dialog">
-      <div class="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#14141b]">
-        <div>
-          <h2 class="text-base font-black uppercase tracking-wider text-white">Edit Product</h2>
-          <p id="edit-modal-id-badge" class="text-xs font-mono text-white/40">ID: #--</p>
+      <div class="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-3.5 border-b border-white/10 bg-[#14141b] flex-shrink-0">
+        <div class="flex items-center gap-2.5">
+          <h2 class="text-sm sm:text-base font-black uppercase tracking-wider text-white">Edit Product</h2>
+          <span id="edit-modal-id-badge" class="px-2 py-0.5 text-[10px] font-mono font-bold bg-white/10 text-white/70 border border-white/15">ID: #--</span>
         </div>
-        <button type="button" class="modal-close text-white/50 hover:text-white p-1" data-modal="edit-modal">
+        <button type="button" class="modal-close text-white/50 hover:text-white p-1.5 hover:bg-white/10 transition-colors" data-modal="edit-modal" aria-label="Close modal">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
       </div>
 
-      <form id="edit-form" class="p-6 space-y-6 flex-1 overflow-y-auto">
+      <form id="edit-form" class="flex flex-col flex-1 min-h-0 overflow-hidden">
         <input type="hidden" id="edit-id" />
 
-        <!-- Title & Brand -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="md:col-span-2">
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Product Title</label>
-            <input type="text" id="edit-name" required class="admin-input" />
-          </div>
-          <div>
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Brand</label>
-            <input type="text" id="edit-brand" required class="admin-input" list="brand-datalist" />
-          </div>
-        </div>
-
-        <!-- Price, MRP, Scale, Frame Size -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Sale Price (₹)</label>
-            <input type="number" id="edit-price" required min="1" class="admin-input" />
-          </div>
-          <div>
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Original MRP (₹)</label>
-            <input type="number" id="edit-original-price" min="1" class="admin-input" />
-          </div>
-          <div>
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Scale</label>
-            <input type="text" id="edit-scale" class="admin-input" placeholder="1:36" />
-          </div>
-          <div>
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Frame Size</label>
-            <input type="text" id="edit-frame-size" class="admin-input" placeholder="15x20" />
-          </div>
-        </div>
-
-        <!-- Stock Switch & Count -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-white/[0.02] border border-white/10">
-          <div>
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Availability Toggle</label>
-            <label class="flex items-center gap-3 cursor-pointer select-none">
-              <input type="checkbox" id="edit-out-of-stock" class="w-4 h-4 accent-red-500 rounded-none cursor-pointer" />
-              <span class="text-sm font-semibold text-white">Mark as OUT OF STOCK (Sold Out)</span>
-            </label>
-            <p class="text-[11px] text-white/40 mt-1">When checked, checkout and cart buttons are automatically disabled.</p>
+        <!-- Scrollable Form Body -->
+        <div class="p-3.5 sm:p-5 md:p-6 space-y-4 sm:space-y-5 flex-1 overflow-y-auto overscroll-contain">
+          <!-- Title & Brand -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Product Title</label>
+              <input type="text" id="edit-name" required class="admin-input text-xs sm:text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Brand</label>
+              <input type="text" id="edit-brand" required class="admin-input text-xs sm:text-sm" list="brand-datalist" />
+            </div>
           </div>
 
-          <div>
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Inventory Stock Count</label>
-            <input type="number" id="edit-stock" min="0" class="admin-input w-32" />
-          </div>
-        </div>
-
-        <!-- Description -->
-        <div>
-          <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Description</label>
-          <textarea id="edit-description" rows="5" class="admin-input resize-y"></textarea>
-        </div>
-
-        <!-- Photo Gallery Manager -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60">Product Photos</label>
-            <span class="text-[11px] text-white/40">First photo is the primary thumbnail</span>
-          </div>
-
-          <!-- Current Photos Grid -->
-          <div id="edit-photos-list" class="flex flex-wrap gap-3 p-3 bg-[#060609] border border-white/10 min-h-[105px]">
-            <!-- Injected by JS -->
+          <!-- Price, MRP, Scale, Frame Size -->
+          <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3.5">
+            <div>
+              <label class="block text-[11px] sm:text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Sale Price (₹)</label>
+              <input type="number" id="edit-price" required min="1" class="admin-input text-xs sm:text-sm" />
+            </div>
+            <div>
+              <label class="block text-[11px] sm:text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Original MRP (₹)</label>
+              <input type="number" id="edit-original-price" min="1" class="admin-input text-xs sm:text-sm" />
+            </div>
+            <div>
+              <label class="block text-[11px] sm:text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Scale</label>
+              <input type="text" id="edit-scale" class="admin-input text-xs sm:text-sm" placeholder="1:36" />
+            </div>
+            <div>
+              <label class="block text-[11px] sm:text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Frame Size</label>
+              <input type="text" id="edit-frame-size" class="admin-input text-xs sm:text-sm" placeholder="15x20" />
+            </div>
           </div>
 
-          <!-- Add Photo via Upload or URL -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-            <!-- File Upload -->
-            <div class="p-3 bg-white/[0.02] border border-white/10">
-              <p class="text-xs font-mono uppercase tracking-wider text-white/50 mb-2">Upload File</p>
-              <input type="file" id="edit-photo-upload" accept="image/*" class="text-xs text-white/70 file:mr-3 file:py-1.5 file:px-3 file:border file:border-white/20 file:text-xs file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20 cursor-pointer" />
-              <span id="upload-status" class="text-[11px] font-mono text-emerald-400 block mt-1.5 hidden">Uploading...</span>
+          <!-- Stock Switch & Count -->
+          <div class="p-3 sm:p-4 bg-white/[0.02] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <div class="flex-1">
+              <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1">Availability Toggle</label>
+              <label class="inline-flex items-center gap-2.5 cursor-pointer select-none py-1">
+                <input type="checkbox" id="edit-out-of-stock" class="w-4 h-4 accent-red-500 rounded-none cursor-pointer" />
+                <span class="text-xs sm:text-sm font-bold text-white">Mark as OUT OF STOCK (Sold Out)</span>
+              </label>
+              <p class="text-[10px] sm:text-[11px] text-white/40">When checked, checkout & cart are automatically disabled for buyers.</p>
             </div>
 
-            <!-- Image URL Input -->
-            <div class="p-3 bg-white/[0.02] border border-white/10">
-              <p class="text-xs font-mono uppercase tracking-wider text-white/50 mb-2">Add Photo via URL</p>
-              <div class="flex gap-2">
-                <input type="url" id="edit-photo-url-input" placeholder="https://..." class="admin-input text-xs" />
-                <button type="button" id="btn-add-photo-url" class="admin-btn admin-btn-secondary py-1.5 px-3 text-xs whitespace-nowrap">Add</button>
+            <div class="sm:border-l sm:border-white/10 sm:pl-4 flex flex-row sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-2">
+              <label class="text-xs font-mono uppercase tracking-wider text-white/60">Inventory Units</label>
+              <input type="number" id="edit-stock" min="0" class="admin-input w-24 sm:w-28 text-center text-xs sm:text-sm" />
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div>
+            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Description</label>
+            <textarea id="edit-description" rows="4" class="admin-input resize-y text-xs sm:text-sm leading-relaxed"></textarea>
+          </div>
+
+          <!-- Photo Gallery Manager -->
+          <div class="space-y-2.5 pt-1">
+            <div class="flex items-center justify-between flex-wrap gap-1">
+              <label class="block text-xs font-mono uppercase tracking-wider text-white/60 font-bold">Product Photos</label>
+              <span class="text-[10px] sm:text-[11px] text-white/40">First photo is primary store thumbnail</span>
+            </div>
+
+            <!-- Current Photos Grid -->
+            <div id="edit-photos-list" class="flex flex-wrap gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-[#060609] border border-white/10 min-h-[110px] max-h-[220px] overflow-y-auto">
+              <!-- Injected by JS -->
+            </div>
+
+            <!-- Add Photo via Upload or URL -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <!-- File Upload -->
+              <div class="p-3 bg-white/[0.02] border border-white/10 flex flex-col justify-between">
+                <p class="text-[11px] font-mono uppercase tracking-wider text-white/50 mb-1.5">Upload to Supabase Storage</p>
+                <input type="file" id="edit-photo-upload" accept="image/*" class="w-full text-xs text-white/70 file:mr-2 file:py-1 file:px-2.5 file:border file:border-white/20 file:text-xs file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20 cursor-pointer" />
+                <span id="upload-status" class="text-[11px] font-mono text-emerald-400 block mt-1 hidden">Uploading...</span>
+              </div>
+
+              <!-- Image URL Input -->
+              <div class="p-3 bg-white/[0.02] border border-white/10 flex flex-col justify-between">
+                <p class="text-[11px] font-mono uppercase tracking-wider text-white/50 mb-1.5">Add via Direct Image URL</p>
+                <div class="flex gap-2 w-full">
+                  <input type="url" id="edit-photo-url-input" placeholder="https://res.cloudinary.com/..." class="admin-input text-xs flex-1 min-w-0" />
+                  <button type="button" id="btn-add-photo-url" class="admin-btn admin-btn-secondary py-1 px-3 text-xs whitespace-nowrap flex-shrink-0">Add</button>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Modal Footer Actions -->
-        <div class="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
-          <button type="button" class="admin-btn admin-btn-secondary modal-close" data-modal="edit-modal">Cancel</button>
-          <button type="submit" id="btn-save-edit" class="admin-btn admin-btn-primary">Save Changes</button>
+        <!-- Sticky Modal Footer Actions -->
+        <div class="px-4 py-3 sm:px-6 sm:py-3.5 bg-[#14141b] border-t border-white/10 flex items-center justify-end gap-2.5 flex-shrink-0">
+          <button type="button" class="admin-btn admin-btn-secondary modal-close px-3 sm:px-4 py-2 text-xs" data-modal="edit-modal">Cancel</button>
+          <button type="submit" id="btn-save-edit" class="admin-btn admin-btn-primary px-4 sm:px-6 py-2 text-xs">Save Changes</button>
         </div>
       </form>
     </div>
@@ -380,57 +383,61 @@
   <!-- ================= ADD NEW PRODUCT MODAL ================= -->
   <div id="add-modal" class="admin-modal-backdrop">
     <div class="admin-modal-dialog">
-      <div class="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#14141b]">
-        <h2 class="text-base font-black uppercase tracking-wider text-white">+ Create New Product</h2>
-        <button type="button" class="modal-close text-white/50 hover:text-white p-1" data-modal="add-modal">
+      <div class="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-3.5 border-b border-white/10 bg-[#14141b] flex-shrink-0">
+        <h2 class="text-sm sm:text-base font-black uppercase tracking-wider text-white">+ Create New Product</h2>
+        <button type="button" class="modal-close text-white/50 hover:text-white p-1.5 hover:bg-white/10 transition-colors" data-modal="add-modal" aria-label="Close modal">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
       </div>
 
-      <form id="add-form" class="p-6 space-y-6 flex-1 overflow-y-auto">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="md:col-span-2">
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Product Title</label>
-            <input type="text" id="add-name" required placeholder="e.g. Porsche 911 GT3 RS 3D Diecast Car Frame" class="admin-input" />
+      <form id="add-form" class="flex flex-col flex-1 min-h-0 overflow-hidden">
+        <!-- Scrollable Form Body -->
+        <div class="p-3.5 sm:p-5 md:p-6 space-y-4 sm:space-y-5 flex-1 overflow-y-auto overscroll-contain">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Product Title</label>
+              <input type="text" id="add-name" required placeholder="e.g. Porsche 911 GT3 RS 3D Diecast Car Frame" class="admin-input text-xs sm:text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Brand</label>
+              <input type="text" id="add-brand" required placeholder="Porsche" class="admin-input text-xs sm:text-sm" list="brand-datalist" />
+            </div>
           </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3.5">
+            <div>
+              <label class="block text-[11px] sm:text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Sale Price (₹)</label>
+              <input type="number" id="add-price" required min="1" placeholder="599" class="admin-input text-xs sm:text-sm" />
+            </div>
+            <div>
+              <label class="block text-[11px] sm:text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Original MRP (₹)</label>
+              <input type="number" id="add-original-price" min="1" placeholder="999" class="admin-input text-xs sm:text-sm" />
+            </div>
+            <div>
+              <label class="block text-[11px] sm:text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Scale</label>
+              <input type="text" id="add-scale" value="1:36" class="admin-input text-xs sm:text-sm" />
+            </div>
+            <div>
+              <label class="block text-[11px] sm:text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Frame Size</label>
+              <input type="text" id="add-frame-size" value="15x20" class="admin-input text-xs sm:text-sm" />
+            </div>
+          </div>
+
           <div>
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Brand</label>
-            <input type="text" id="add-brand" required placeholder="Porsche" class="admin-input" list="brand-datalist" />
+            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Main Image URL</label>
+            <input type="url" id="add-image" required placeholder="https://res.cloudinary.com/..." class="admin-input text-xs sm:text-sm" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">Description</label>
+            <textarea id="add-description" rows="3" class="admin-input resize-y text-xs sm:text-sm leading-relaxed" placeholder="Describe the model, craftsmanship, and specifications..."></textarea>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Sale Price (₹)</label>
-            <input type="number" id="add-price" required min="1" placeholder="599" class="admin-input" />
-          </div>
-          <div>
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Original MRP (₹)</label>
-            <input type="number" id="add-original-price" min="1" placeholder="999" class="admin-input" />
-          </div>
-          <div>
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Scale</label>
-            <input type="text" id="add-scale" value="1:36" class="admin-input" />
-          </div>
-          <div>
-            <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Frame Size</label>
-            <input type="text" id="add-frame-size" value="15x20" class="admin-input" />
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Main Image URL</label>
-          <input type="url" id="add-image" required placeholder="https://res.cloudinary.com/..." class="admin-input" />
-        </div>
-
-        <div>
-          <label class="block text-xs font-mono uppercase tracking-wider text-white/60 mb-2">Description</label>
-          <textarea id="add-description" rows="4" class="admin-input resize-y" placeholder="Describe the model, craftsmanship, and specifications..."></textarea>
-        </div>
-
-        <div class="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
-          <button type="button" class="admin-btn admin-btn-secondary modal-close" data-modal="add-modal">Cancel</button>
-          <button type="submit" id="btn-save-add" class="admin-btn admin-btn-primary">Create Product</button>
+        <!-- Sticky Modal Footer Actions -->
+        <div class="px-4 py-3 sm:px-6 sm:py-3.5 bg-[#14141b] border-t border-white/10 flex items-center justify-end gap-2.5 flex-shrink-0">
+          <button type="button" class="admin-btn admin-btn-secondary modal-close px-3 sm:px-4 py-2 text-xs" data-modal="add-modal">Cancel</button>
+          <button type="submit" id="btn-save-add" class="admin-btn admin-btn-primary px-4 sm:px-6 py-2 text-xs">Create Product</button>
         </div>
       </form>
     </div>

@@ -452,16 +452,17 @@
     }
 
     editPhotosList.innerHTML = editingPhotos.map((url, idx) => `
-      <div class="relative w-20 h-20 bg-black border ${idx === 0 ? 'border-[var(--brand-orange)] ring-1 ring-[var(--brand-orange)]' : 'border-white/15'} group flex-shrink-0">
-        <img src="${escapeHtml(url)}" alt="Photo ${idx + 1}" class="w-full h-full object-cover" onerror="this.src='/images/logo-footer.png'" />
+      <div class="relative w-20 sm:w-24 bg-black border ${idx === 0 ? 'border-[var(--brand-orange)] ring-1 ring-[var(--brand-orange)]' : 'border-white/15'} flex flex-col flex-shrink-0">
+        <div class="relative w-full h-20 sm:h-24 bg-[#050508] overflow-hidden">
+          <img src="${escapeHtml(url)}" alt="Photo ${idx + 1}" class="w-full h-full object-cover" onerror="this.src='/images/logo-footer.png'" />
+          ${idx === 0 ? '<span class="absolute top-1 left-1 px-1.5 py-0.5 bg-black/90 text-[8px] font-mono text-[var(--brand-orange)] font-bold tracking-wider border border-[var(--brand-orange)]/40">PRIMARY</span>' : ''}
+        </div>
         
-        ${idx === 0 ? '<span class="absolute top-1 left-1 px-1 py-0.5 bg-black/80 text-[9px] font-mono text-[var(--brand-orange)] font-bold">PRIMARY</span>' : ''}
-        
-        <div class="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
+        <div class="p-1 bg-[#101015] border-t border-white/10 flex flex-col gap-1">
           ${idx > 0 ? `
-            <button type="button" class="text-[9px] font-mono bg-white/20 hover:bg-white/40 text-white px-1 py-0.5 w-full text-center" data-photo-action="set-primary" data-index="${idx}">Set Main</button>
+            <button type="button" class="text-[9px] font-mono font-bold bg-white/10 hover:bg-white/20 active:bg-white/30 text-white py-1 w-full text-center transition-colors" data-photo-action="set-primary" data-index="${idx}">★ Set Main</button>
           ` : ''}
-          <button type="button" class="text-[9px] font-mono bg-red-500/80 hover:bg-red-500 text-white px-1 py-0.5 w-full text-center" data-photo-action="delete" data-index="${idx}">Remove</button>
+          <button type="button" class="text-[9px] font-mono font-bold bg-red-500/20 hover:bg-red-500/40 active:bg-red-500/60 text-red-300 py-1 w-full text-center transition-colors" data-photo-action="delete" data-index="${idx}">✕ Remove</button>
         </div>
       </div>
     `).join('');

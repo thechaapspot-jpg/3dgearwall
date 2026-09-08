@@ -23,6 +23,20 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Rock-Solid Opaque Navigation Bar */
+.admin-navbar,
+header.admin-navbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  background-color: #0a0a0e !important;
+  background: #0a0a0e !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
+}
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
@@ -173,9 +187,9 @@ body {
 .admin-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -183,7 +197,7 @@ body {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
-  padding: 12px;
+  padding: 16px;
 }
 
 .admin-modal-backdrop.open,
@@ -195,15 +209,16 @@ body {
 .admin-modal-dialog {
   background: #0e0e13;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95);
   width: 100%;
-  max-width: 820px;
+  max-width: 780px;
   max-height: 92vh;
   display: flex;
   flex-direction: column;
   transform: translateY(15px);
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .admin-modal-backdrop.open .admin-modal-dialog,
@@ -256,13 +271,32 @@ body {
 
 /* Mobile Responsiveness Improvements */
 @media (max-width: 768px) {
+  .admin-navbar,
+  header.admin-navbar {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
   .admin-modal-backdrop {
-    padding: 6px;
+    padding: 8px 6px;
+    align-items: center;
   }
 
   .admin-modal-dialog {
-    max-height: 95vh;
+    max-height: 94vh;
     border-width: 1px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .admin-input {
+    font-size: 14px; /* Prevents auto-zoom on mobile safari */
+    padding: 9px 11px;
+  }
+
+  .admin-btn {
+    padding: 8px 14px;
+    font-size: 11px;
   }
 
   #admin-toast-container {
@@ -279,6 +313,6 @@ body {
   }
 
   .table-responsive-wrapper table {
-    min-width: 640px;
+    min-width: 660px;
   }
 }
