@@ -631,7 +631,12 @@
 
     // Razorpay flow
     const subtotal = getSubtotal();
-    const orderId = 'GW-' + Date.now().toString().slice(-6);
+    const d = new Date();
+    const yr = String(d.getFullYear()).slice(-2);
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const randCode = Math.floor(1000 + Math.random() * 9000);
+    const orderId = `GW-${yr}${mo}${day}-${randCode}`;
 
     // Load Razorpay if not loaded
     if (!window.Razorpay) {
@@ -648,15 +653,6 @@
   }
 
   function openRazorpayCheckout(amount, orderId) {
-    if (RAZORPAY_KEY === 'rzp_test_PLACEHOLDER') {
-      // Placeholder mode: simulate success
-      showToast('Razorpay key not configured', 'Simulating payment success...');
-      setTimeout(() => {
-        handlePaymentSuccess(orderId);
-      }, 1000);
-      return;
-    }
-
     const options = {
       key: RAZORPAY_KEY,
       amount: amount * 100, // Razorpay expects paise
@@ -692,15 +688,67 @@
     }
   }
 
-  function handlePaymentSuccess(orderId, paymentId) {
+  async function handlePaymentSuccess(orderId, paymentId) {
+    const subtotal = getSubtotal();
+    const purchasedItems = cart.map(i => ({
+      id: i.id,
+      name: i.name,
+      brand: i.brand,
+      price: i.price,
+      quantity: i.quantity,
+      scale: i.scale || '1:36',
+      image: i.image
+    }));
+
+    const orderPayload = {
+      order_id: orderId,
+      customer_name: checkoutData.name || 'Valued Collector',
+      customer_email: checkoutData.email || '',
+      customer_phone: checkoutData.phone || '',
+      shipping_address: checkoutData.address || '',
+      city: checkoutData.city || '',
+      state: checkoutData.state || '',
+      pincode: checkoutData.pincode || '',
+      items: purchasedItems,
+      subtotal: subtotal,
+      payment_method: 'razorpay',
+      payment_id: paymentId || ('PAY-' + Date.now()),
+      payment_status: 'PAID',
+      order_status: 'Order Confirmed',
+      courier_partner: 'Bluedart Express',
+      tracking_number: null,
+      created_at: new Date().toISOString()
+    };
+
+    // 1. Cache to localStorage
+    try {
+      localStorage.setItem('gw_last_order', JSON.stringify(orderPayload));
+    } catch (e) {}
+
+    // 2. Persist to Supabase public.orders
+    try {
+      fetch('https://ipcutxtnjplptmxjdtax.supabase.co/rest/v1/orders', {
+        method: 'POST',
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwY3V0eHRuanBscHRteGpkdGF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NjUwMTMsImV4cCI6MjEwNDQ0MTAxM30.WHsEzjWwNl8R48b8239RUIOPjuN7xbl-RdEQGLG_1LI',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwY3V0eHRuanBscHRteGpkdGF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NjUwMTMsImV4cCI6MjEwNDQ0MTAxM30.WHsEzjWwNl8R48b8239RUIOPjuN7xbl-RdEQGLG_1LI',
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(orderPayload)
+      }).catch(err => console.warn('Order sync note:', err));
+    } catch (e) {}
+
     closeCheckoutModal();
-    openSuccessModal(orderId);
 
     // Clear cart
     cart = [];
     saveCart();
     checkoutData = {};
     checkoutStep = 1;
+
+    // Immediate redirect to dedicated Thank You Page
+    window.location.href = '/thank-you.html?order_id=' + encodeURIComponent(orderId);
   }
 
   function openSuccessModal(orderId) {

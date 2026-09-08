@@ -753,6 +753,320 @@
     }
   });
 
+  // ================= TAB SWITCHING =================
+  const tabBtnProducts = document.getElementById('tab-btn-products');
+  const tabBtnOrders = document.getElementById('tab-btn-orders');
+  const tabContentProducts = document.getElementById('tab-content-products');
+  const tabContentOrders = document.getElementById('tab-content-orders');
+  const badgeOrdersCount = document.getElementById('badge-orders-count');
+
+  if (tabBtnProducts && tabBtnOrders) {
+    tabBtnProducts.addEventListener('click', () => {
+      tabBtnProducts.className = 'admin-btn admin-btn-primary';
+      tabBtnOrders.className = 'admin-btn admin-btn-secondary';
+      if (tabContentProducts) tabContentProducts.classList.remove('hidden');
+      if (tabContentOrders) tabContentOrders.classList.add('hidden');
+    });
+
+    tabBtnOrders.addEventListener('click', () => {
+      tabBtnOrders.className = 'admin-btn admin-btn-primary';
+      tabBtnProducts.className = 'admin-btn admin-btn-secondary';
+      if (tabContentOrders) tabContentOrders.classList.remove('hidden');
+      if (tabContentProducts) tabContentProducts.classList.add('hidden');
+      loadOrders();
+    });
+  }
+
+  // ================= ORDERS MANAGEMENT =================
+  let currentOrders = [];
+
+  const ordersTableBody = document.getElementById('orders-table-body');
+  const statOrdersTotal = document.getElementById('stat-orders-total');
+  const statOrdersRevenue = document.getElementById('stat-orders-revenue');
+  const statOrdersPending = document.getElementById('stat-orders-pending');
+  const statOrdersDelivered = document.getElementById('stat-orders-delivered');
+  const ordersSearchInput = document.getElementById('orders-search-input');
+  const ordersFilterStatus = document.getElementById('orders-filter-status');
+  const btnRefreshOrders = document.getElementById('btn-refresh-orders');
+
+  async function loadOrders() {
+    if (!ordersTableBody) return;
+    ordersTableBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="py-12 text-center text-white/40">
+          <div class="inline-flex items-center gap-2">
+            <svg class="animate-spin h-4 w-4 text-white/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+            <span>Loading orders from Supabase...</span>
+          </div>
+        </td>
+      </tr>
+    `;
+
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      currentOrders = data || [];
+      updateOrdersStats();
+      renderOrdersTable();
+    } catch (err) {
+      console.error('Failed to load orders:', err);
+      ordersTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="py-8 text-center text-red-400">
+            Failed to load orders: ${escapeHtml(err.message)}
+          </td>
+        </tr>
+      `;
+      showToast('Error loading orders: ' + err.message, 'error');
+    }
+  }
+
+  function updateOrdersStats() {
+    const total = currentOrders.length;
+    const revenue = currentOrders.reduce((sum, o) => sum + (Number(o.subtotal) || 0), 0);
+    const pending = currentOrders.filter(o => !o.order_status || o.order_status === 'Order Confirmed' || o.order_status === 'Handcrafted & Framing').length;
+    const delivered = currentOrders.filter(o => (o.order_status || '').toLowerCase().includes('delivered')).length;
+
+    if (statOrdersTotal) statOrdersTotal.textContent = total;
+    if (statOrdersRevenue) statOrdersRevenue.textContent = `₹${revenue.toLocaleString('en-IN')}`;
+    if (statOrdersPending) statOrdersPending.textContent = pending;
+    if (statOrdersDelivered) statOrdersDelivered.textContent = delivered;
+    if (badgeOrdersCount) badgeOrdersCount.textContent = total;
+  }
+
+  function getFilteredOrders() {
+    const search = ordersSearchInput ? ordersSearchInput.value.trim().toLowerCase() : '';
+    const status = ordersFilterStatus ? ordersFilterStatus.value : 'all';
+
+    return currentOrders.filter(o => {
+      if (search) {
+        const idMatch = (o.order_id || '').toLowerCase().includes(search);
+        const nameMatch = (o.customer_name || '').toLowerCase().includes(search);
+        const phoneMatch = (o.customer_phone || '').includes(search);
+        const cityMatch = (o.city || '').toLowerCase().includes(search);
+        if (!idMatch && !nameMatch && !phoneMatch && !cityMatch) return false;
+      }
+      if (status !== 'all' && o.order_status !== status) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  function renderOrdersTable() {
+    if (!ordersTableBody) return;
+    const filtered = getFilteredOrders();
+
+    if (filtered.length === 0) {
+      ordersTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="py-12 text-center text-white/40">
+            No customer orders match the current filter.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    ordersTableBody.innerHTML = filtered.map(o => {
+      const orderId = escapeHtml(o.order_id);
+      const name = escapeHtml(o.customer_name || 'Customer');
+      const phone = escapeHtml(o.customer_phone || '');
+      const email = escapeHtml(o.customer_email || '');
+      const address = escapeHtml(o.shipping_address || '');
+      const city = escapeHtml(o.city || '');
+      const pincode = escapeHtml(o.pincode || '');
+      const subtotal = Number(o.subtotal || 0);
+      const payId = escapeHtml(o.payment_id || 'N/A');
+      const status = o.order_status || 'Order Confirmed';
+      const carrier = escapeHtml(o.courier_partner || 'Bluedart Express');
+      const awb = escapeHtml(o.tracking_number || '');
+      const dateStr = new Date(o.created_at).toLocaleString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const items = Array.isArray(o.items) ? o.items : [];
+
+      return `
+        <tr class="hover:bg-white/[0.03] transition-colors border-b border-white/5" data-order-row="${orderId}">
+          <!-- Order ID & Date -->
+          <td class="py-3.5 px-4 align-top whitespace-nowrap">
+            <span class="font-mono font-bold text-xs text-white block">${orderId}</span>
+            <span class="text-[11px] font-mono text-white/40 block mt-0.5">${dateStr}</span>
+            <span class="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">PAID (Razorpay)</span>
+          </td>
+
+          <!-- Customer & Address -->
+          <td class="py-3.5 px-4 align-top">
+            <p class="font-bold text-xs text-white">${name}</p>
+            <p class="text-[11px] font-mono text-white/70">
+              <a href="tel:${phone}" class="hover:underline text-[var(--brand-orange)] font-semibold">${phone}</a>
+              ${email ? ` • <span class="text-white/50">${email}</span>` : ''}
+            </p>
+            <p class="text-[11px] text-white/50 mt-1 leading-tight line-clamp-2" title="${address}">
+              ${address}, ${city} - ${pincode}
+            </p>
+          </td>
+
+          <!-- Items & Total -->
+          <td class="py-3.5 px-4 align-top">
+            <div class="space-y-1 mb-1.5">
+              ${items.map(it => `
+                <div class="text-[11px] text-white/80 line-clamp-1">
+                  • <strong>${escapeHtml(it.name || 'Frame')}</strong> × ${it.quantity || 1} <span class="text-white/40">(${it.scale || '1:36'})</span>
+                </div>
+              `).join('')}
+            </div>
+            <div class="font-mono font-black text-sm text-emerald-400">
+              ₹${subtotal.toLocaleString('en-IN')}
+            </div>
+            <div class="text-[10px] font-mono text-white/40" title="${payId}">
+              Ref: ${payId.slice(0, 16)}...
+            </div>
+          </td>
+
+          <!-- Live Shipment Status -->
+          <td class="py-3.5 px-4 align-top">
+            <select class="admin-input text-xs py-1.5 px-2 font-semibold cursor-pointer select-status" data-order-id="${orderId}">
+              <option value="Order Confirmed" ${status === 'Order Confirmed' ? 'selected' : ''}>1. Order Confirmed</option>
+              <option value="Handcrafted & Framing" ${status === 'Handcrafted & Framing' ? 'selected' : ''}>2. Framing & QC</option>
+              <option value="Dispatched / In Transit" ${status === 'Dispatched / In Transit' ? 'selected' : ''}>3. In Transit</option>
+              <option value="Out for Delivery" ${status === 'Out for Delivery' ? 'selected' : ''}>4. Out for Delivery</option>
+              <option value="Delivered" ${status === 'Delivered' ? 'selected' : ''}>5. Delivered</option>
+            </select>
+            <span class="text-[10px] text-white/40 block mt-1">Live customer status</span>
+          </td>
+
+          <!-- Logistics & AWB -->
+          <td class="py-3.5 px-4 align-top">
+            <div class="space-y-1.5">
+              <input type="text" placeholder="AWB / Tracking No." value="${awb}" class="admin-input text-xs py-1 px-2 font-mono input-awb" data-order-id="${orderId}" />
+              <div class="flex gap-1.5">
+                <select class="admin-input text-[11px] py-1 px-1.5 select-carrier flex-1" data-order-id="${orderId}">
+                  <option value="Bluedart Express" ${carrier === 'Bluedart Express' ? 'selected' : ''}>Bluedart</option>
+                  <option value="Delhivery" ${carrier === 'Delhivery' ? 'selected' : ''}>Delhivery</option>
+                  <option value="DTDC Express" ${carrier === 'DTDC Express' ? 'selected' : ''}>DTDC</option>
+                  <option value="India SpeedPost" ${carrier === 'India SpeedPost' ? 'selected' : ''}>SpeedPost</option>
+                </select>
+                <button type="button" class="px-2 py-1 text-[10px] font-bold uppercase bg-white/10 hover:bg-white/20 text-white border border-white/20 btn-save-logistics" data-order-id="${orderId}">
+                  Save
+                </button>
+              </div>
+            </div>
+          </td>
+
+          <!-- Actions -->
+          <td class="py-3.5 px-4 align-top text-right whitespace-nowrap">
+            <a href="/track.html?order_id=${orderId}" target="_blank" class="admin-btn admin-btn-secondary text-[10px] py-1 px-2 font-mono" title="Test tracking in real-time">
+              Track ↗
+            </a>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Orders Table Event Delegation
+  if (ordersTableBody) {
+    // 1. Status change listener
+    ordersTableBody.addEventListener('change', async (e) => {
+      const select = e.target.closest('.select-status');
+      if (!select) return;
+
+      const orderId = select.getAttribute('data-order-id');
+      const newStatus = select.value;
+
+      select.disabled = true;
+      try {
+        const { error } = await supabase
+          .from('orders')
+          .update({ order_status: newStatus, updated_at: new Date().toISOString() })
+          .eq('order_id', orderId);
+
+        if (error) throw error;
+
+        const ord = currentOrders.find(o => o.order_id === orderId);
+        if (ord) ord.order_status = newStatus;
+        updateOrdersStats();
+        showToast(`Order #${orderId} status updated to "${newStatus}"`);
+      } catch (err) {
+        console.error('Status update failed:', err);
+        showToast('Failed to update status: ' + err.message, 'error');
+      } finally {
+        select.disabled = false;
+      }
+    });
+
+    // 2. Save logistics / AWB listener
+    ordersTableBody.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.btn-save-logistics');
+      if (!btn) return;
+
+      const orderId = btn.getAttribute('data-order-id');
+      const row = btn.closest('tr');
+      const awbInput = row.querySelector('.input-awb');
+      const carrierSelect = row.querySelector('.select-carrier');
+
+      const tracking_number = awbInput ? awbInput.value.trim() : null;
+      const courier_partner = carrierSelect ? carrierSelect.value : 'Bluedart Express';
+
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      try {
+        const { error } = await supabase
+          .from('orders')
+          .update({
+            tracking_number: tracking_number || null,
+            courier_partner: courier_partner,
+            order_status: tracking_number ? 'Dispatched / In Transit' : undefined,
+            updated_at: new Date().toISOString()
+          })
+          .eq('order_id', orderId);
+
+        if (error) throw error;
+
+        const ord = currentOrders.find(o => o.order_id === orderId);
+        if (ord) {
+          ord.tracking_number = tracking_number;
+          ord.courier_partner = courier_partner;
+          if (tracking_number) ord.order_status = 'Dispatched / In Transit';
+        }
+        renderOrdersTable();
+        updateOrdersStats();
+        showToast(`Saved AWB details for Order #${orderId}`);
+      } catch (err) {
+        console.error('AWB save failed:', err);
+        showToast('Failed to save AWB: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save';
+      }
+    });
+  }
+
+  // Orders Filter Events
+  if (ordersSearchInput) ordersSearchInput.addEventListener('input', renderOrdersTable);
+  if (ordersFilterStatus) ordersFilterStatus.addEventListener('change', renderOrdersTable);
+  if (btnRefreshOrders) btnRefreshOrders.addEventListener('click', loadOrders);
+
+  // Hook into auth
+  const origHandleSession = handleSessionChange;
+  handleSessionChange = function(session) {
+    origHandleSession(session);
+    if (session && session.user) {
+      loadOrders();
+    }
+  };
+
   // Start Auth Check
   initAuth();
 

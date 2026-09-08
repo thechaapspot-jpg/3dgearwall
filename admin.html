@@ -87,83 +87,178 @@
     </section>
 
     <!-- 2. DASHBOARD VIEW (Shown when logged in) -->
-    <section id="dashboard-view" class="hidden space-y-8">
-      
-      <!-- Metrics Overview Cards -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="admin-card p-5">
-          <p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-1">Total Products</p>
-          <h3 id="stat-total" class="text-3xl font-black text-white">--</h3>
-          <p class="text-[11px] text-white/40 mt-1">Active in catalog</p>
-        </div>
+    <section id="dashboard-view" class="hidden space-y-6">
 
-        <div class="admin-card p-5">
-          <p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-1">In Stock</p>
-          <h3 id="stat-in-stock" class="text-3xl font-black text-emerald-400">--</h3>
-          <p class="text-[11px] text-emerald-400/60 mt-1">Ready to purchase</p>
-        </div>
-
-        <div class="admin-card p-5">
-          <p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-1">Out of Stock</p>
-          <h3 id="stat-out-stock" class="text-3xl font-black text-rose-400">--</h3>
-          <p class="text-[11px] text-rose-400/60 mt-1">Sold out badges active</p>
-        </div>
-
-        <div class="admin-card p-5">
-          <p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-1">Catalog Brands</p>
-          <h3 id="stat-brands" class="text-3xl font-black text-white">--</h3>
-          <p class="text-[11px] text-white/40 mt-1">Unique car manufacturers</p>
-        </div>
-      </div>
-
-      <!-- Action & Filter Bar -->
-      <div class="admin-card p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <!-- Live Search Input -->
-          <div class="relative flex-1 md:w-72">
-            <input id="search-input" type="text" placeholder="Search by name or brand..." class="admin-input pl-9" />
-            <svg class="w-4 h-4 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-          </div>
-
-          <!-- Brand Filter -->
-          <select id="filter-brand" class="admin-input md:w-44 appearance-none cursor-pointer">
-            <option value="all">All Brands</option>
-          </select>
-
-          <!-- Stock Filter -->
-          <select id="filter-stock" class="admin-input md:w-36 appearance-none cursor-pointer">
-            <option value="all">All Status</option>
-            <option value="in">In Stock Only</option>
-            <option value="out">Out of Stock Only</option>
-          </select>
-        </div>
-
-        <!-- Add Product Button -->
-        <button id="btn-open-add" class="admin-btn admin-btn-primary w-full md:w-auto whitespace-nowrap">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-          <span>Add New Product</span>
+      <!-- Navigation Tabs: Products vs Orders -->
+      <div class="flex items-center gap-2 border-b border-white/10 pb-4">
+        <button id="tab-btn-products" type="button" class="admin-btn admin-btn-primary">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+          <span>Catalog Inventory</span>
+        </button>
+        <button id="tab-btn-orders" type="button" class="admin-btn admin-btn-secondary">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+          <span>Orders & Dispatch</span>
+          <span id="badge-orders-count" class="px-1.5 py-0.5 text-[10px] font-mono bg-white/20 text-white font-bold">0</span>
         </button>
       </div>
 
-      <!-- Products Inventory Table -->
-      <div class="admin-card overflow-hidden">
-        <div class="table-responsive-wrapper overflow-x-auto">
-          <table class="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr class="border-b border-white/10 bg-white/[0.02] text-xs font-mono uppercase tracking-wider text-white/50">
-                <th class="py-3.5 px-4 w-16">Photo</th>
-                <th class="py-3.5 px-4">Title & Details</th>
-                <th class="py-3.5 px-4 w-32">Price</th>
-                <th class="py-3.5 px-4 w-36">Stock Status</th>
-                <th class="py-3.5 px-4 w-36 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="products-table-body" class="divide-y divide-white/5">
-              <tr>
-                <td colspan="5" class="py-12 text-center text-white/40">Loading products from Supabase...</td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- ================= TAB 1: PRODUCTS INVENTORY ================= -->
+      <div id="tab-content-products" class="space-y-6">
+        <!-- Metrics Overview Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="admin-card p-4 md:p-5">
+            <p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-1">Total Products</p>
+            <h3 id="stat-total" class="text-2xl md:text-3xl font-black text-white">--</h3>
+            <p class="text-[11px] text-white/40 mt-1">Active in catalog</p>
+          </div>
+
+          <div class="admin-card p-4 md:p-5">
+            <p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-1">In Stock</p>
+            <h3 id="stat-in-stock" class="text-2xl md:text-3xl font-black text-emerald-400">--</h3>
+            <p class="text-[11px] text-emerald-400/60 mt-1">Ready to purchase</p>
+          </div>
+
+          <div class="admin-card p-4 md:p-5">
+            <p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-1">Out of Stock</p>
+            <h3 id="stat-out-stock" class="text-2xl md:text-3xl font-black text-rose-400">--</h3>
+            <p class="text-[11px] text-rose-400/60 mt-1">Sold out badges active</p>
+          </div>
+
+          <div class="admin-card p-4 md:p-5">
+            <p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-1">Catalog Brands</p>
+            <h3 id="stat-brands" class="text-2xl md:text-3xl font-black text-white">--</h3>
+            <p class="text-[11px] text-white/40 mt-1">Unique car manufacturers</p>
+          </div>
+        </div>
+
+        <!-- Action & Filter Bar -->
+        <div class="admin-card p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <!-- Live Search Input -->
+            <div class="relative flex-1 md:w-72">
+              <input id="search-input" type="text" placeholder="Search by name or brand..." class="admin-input pl-9" />
+              <svg class="w-4 h-4 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+
+            <!-- Brand Filter -->
+            <select id="filter-brand" class="admin-input md:w-44 appearance-none cursor-pointer">
+              <option value="all">All Brands</option>
+            </select>
+
+            <!-- Stock Filter -->
+            <select id="filter-stock" class="admin-input md:w-36 appearance-none cursor-pointer">
+              <option value="all">All Status</option>
+              <option value="in">In Stock Only</option>
+              <option value="out">Out of Stock Only</option>
+            </select>
+          </div>
+
+          <!-- Add Product Button -->
+          <button id="btn-open-add" class="admin-btn admin-btn-primary w-full md:w-auto whitespace-nowrap">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            <span>Add New Product</span>
+          </button>
+        </div>
+
+        <!-- Products Inventory Table -->
+        <div class="admin-card overflow-hidden">
+          <div class="table-responsive-wrapper overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="border-b border-white/10 bg-white/[0.02] text-xs font-mono uppercase tracking-wider text-white/50">
+                  <th class="py-3.5 px-4 w-16">Photo</th>
+                  <th class="py-3.5 px-4">Title & Details</th>
+                  <th class="py-3.5 px-4 w-32">Price</th>
+                  <th class="py-3.5 px-4 w-36">Stock Status</th>
+                  <th class="py-3.5 px-4 w-36 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="products-table-body" class="divide-y divide-white/5">
+                <tr>
+                  <td colspan="5" class="py-12 text-center text-white/40">Loading products from Supabase...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 2: ORDERS MANAGEMENT ================= -->
+      <div id="tab-content-orders" class="hidden space-y-6">
+        <!-- Orders Metrics -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="admin-card p-4 md:p-5">
+            <p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-1">Total Orders</p>
+            <h3 id="stat-orders-total" class="text-2xl md:text-3xl font-black text-white">0</h3>
+            <p class="text-[11px] text-white/40 mt-1">Processed</p>
+          </div>
+
+          <div class="admin-card p-4 md:p-5">
+            <p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-1">Total Revenue</p>
+            <h3 id="stat-orders-revenue" class="text-2xl md:text-3xl font-black text-emerald-400">₹0</h3>
+            <p class="text-[11px] text-emerald-400/60 mt-1">Paid via Razorpay</p>
+          </div>
+
+          <div class="admin-card p-4 md:p-5">
+            <p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-1">Action Required</p>
+            <h3 id="stat-orders-pending" class="text-2xl md:text-3xl font-black text-amber-400">0</h3>
+            <p class="text-[11px] text-amber-400/60 mt-1">Needs framing / dispatch</p>
+          </div>
+
+          <div class="admin-card p-4 md:p-5">
+            <p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-1">Delivered</p>
+            <h3 id="stat-orders-delivered" class="text-2xl md:text-3xl font-black text-white">0</h3>
+            <p class="text-[11px] text-white/40 mt-1">Fulfilled</p>
+          </div>
+        </div>
+
+        <!-- Orders Filter Bar -->
+        <div class="admin-card p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <!-- Search Order -->
+            <div class="relative flex-1 md:w-80">
+              <input id="orders-search-input" type="text" placeholder="Search by Order ID, Name, Phone..." class="admin-input pl-9" />
+              <svg class="w-4 h-4 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+
+            <!-- Status Filter -->
+            <select id="orders-filter-status" class="admin-input md:w-48 appearance-none cursor-pointer">
+              <option value="all">All Order Statuses</option>
+              <option value="Order Confirmed">Order Confirmed</option>
+              <option value="Handcrafted & Framing">Handcrafted & Framing</option>
+              <option value="Dispatched / In Transit">Dispatched / In Transit</option>
+              <option value="Out for Delivery">Out for Delivery</option>
+              <option value="Delivered">Delivered</option>
+            </select>
+          </div>
+
+          <button id="btn-refresh-orders" class="admin-btn admin-btn-secondary w-full md:w-auto">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            <span>Refresh Orders</span>
+          </button>
+        </div>
+
+        <!-- Orders Table -->
+        <div class="admin-card overflow-hidden">
+          <div class="table-responsive-wrapper overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="border-b border-white/10 bg-white/[0.02] text-xs font-mono uppercase tracking-wider text-white/50">
+                  <th class="py-3.5 px-4 w-44">Order & Date</th>
+                  <th class="py-3.5 px-4">Customer & Address</th>
+                  <th class="py-3.5 px-4">Items & Total</th>
+                  <th class="py-3.5 px-4 w-48">Shipment Status</th>
+                  <th class="py-3.5 px-4 w-60">Logistics & AWB</th>
+                  <th class="py-3.5 px-4 w-28 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="orders-table-body" class="divide-y divide-white/5">
+                <tr>
+                  <td colspan="6" class="py-12 text-center text-white/40">Loading orders...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
