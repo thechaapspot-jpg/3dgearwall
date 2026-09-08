@@ -84,6 +84,31 @@ header.admin-navbar {
   color: rgba(255, 255, 255, 0.3);
 }
 
+/* Search Input Container & Icon Positioning */
+.admin-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.admin-search-box input.admin-input,
+#search-input,
+#orders-search-input {
+  padding-left: 38px !important;
+}
+
+.admin-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  width: 16px;
+  height: 16px;
+  color: rgba(255, 255, 255, 0.4);
+  z-index: 2;
+}
+
 /* Boxy Buttons */
 .admin-btn {
   display: inline-flex;

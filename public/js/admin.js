@@ -19,8 +19,6 @@
   let currentProducts = [];
   let editingPhotos = [];
   let addingPhotos = [];
-  let addOrderPhotos = [];
-  let editOrderPhotos = [];
   let pendingDeleteId = null;
 
   // DOM Elements
@@ -68,30 +66,12 @@
   const addPhotoUrlInput = document.getElementById('add-photo-url-input');
   const btnAddAddPhotoUrl = document.getElementById('btn-add-add-photo-url');
   const addUploadStatus = document.getElementById('add-upload-status');
+  const addImage = document.getElementById('add-image');
 
   // Delete Product Modal Elements
   const deleteModal = document.getElementById('delete-modal');
   const deleteModalText = document.getElementById('delete-modal-text');
   const btnConfirmDelete = document.getElementById('btn-confirm-delete');
-
-  // Order Management Elements
-  const btnOpenAddOrder = document.getElementById('btn-open-add-order');
-  const addOrderModal = document.getElementById('add-order-modal');
-  const addOrderForm = document.getElementById('add-order-form');
-  const addOrderPhotosList = document.getElementById('add-order-photos-list');
-  const addOrderPhotoUpload = document.getElementById('add-order-photo-upload');
-  const addOrderPhotoUrlInput = document.getElementById('add-order-photo-url-input');
-  const btnAddOrderPhotoUrl = document.getElementById('btn-add-order-photo-url');
-  const addOrderUploadStatus = document.getElementById('add-order-upload-status');
-
-  const editOrderModal = document.getElementById('edit-order-modal');
-  const editOrderForm = document.getElementById('edit-order-form');
-  const editOrderPhotosList = document.getElementById('edit-order-photos-list');
-  const editOrderPhotoUpload = document.getElementById('edit-order-photo-upload');
-  const editOrderPhotoUrlInput = document.getElementById('edit-order-photo-url-input');
-  const btnEditOrderPhotoUrl = document.getElementById('btn-edit-order-photo-url');
-  const editOrderUploadStatus = document.getElementById('edit-order-upload-status');
-  const btnEditCurrentOrder = document.getElementById('btn-edit-current-order');
 
   // Toast Container
   const toastContainer = document.getElementById('admin-toast-container');
@@ -780,6 +760,15 @@
     });
   }
 
+  if (addPhotoUrlInput) {
+    addPhotoUrlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (btnAddAddPhotoUrl) btnAddAddPhotoUrl.click();
+      }
+    });
+  }
+
   if (addPhotoUpload) {
     addPhotoUpload.addEventListener('change', (e) => {
       handleMultipleFileUpload(e.target.files, () => addingPhotos, renderAddPhotos, addUploadStatus, addPhotoUpload);
@@ -788,8 +777,15 @@
 
   if (btnOpenAdd) {
     btnOpenAdd.addEventListener('click', () => {
-      addForm.reset();
+      if (addForm) {
+        addForm.reset();
+        const scaleEl = document.getElementById('add-scale');
+        const frameSizeEl = document.getElementById('add-frame-size');
+        if (scaleEl) scaleEl.value = '1:36';
+        if (frameSizeEl) frameSizeEl.value = '15x20';
+      }
       addingPhotos = [];
+      if (addPhotoUrlInput) addPhotoUrlInput.value = '';
       renderAddPhotos();
       openModal(addModal);
     });
@@ -798,9 +794,18 @@
   if (addForm) {
     addForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const saveBtn = document.getElementById('btn-save-add');
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Creating...';
+
+      // If user pasted a photo URL into input but didn't click '+ Add URL', auto-add it
+      if (addPhotoUrlInput && addPhotoUrlInput.value.trim()) {
+        addingPhotos.push(addPhotoUrlInput.value.trim());
+        addPhotoUrlInput.value = '';
+        renderAddPhotos();
+      }
+
+      if (addingPhotos.length === 0) {
+        showToast('Please upload or provide at least one product photo', 'error');
+        return;
+      }
 
       const title = document.getElementById('add-name').value.trim();
       const brand = document.getElementById('add-brand').value.trim();
@@ -809,6 +814,15 @@
       const scale = document.getElementById('add-scale').value.trim() || '1:36';
       const frame_size = document.getElementById('add-frame-size').value.trim() || '15x20';
       const description = document.getElementById('add-description').value.trim();
+
+      if (!title || !brand || isNaN(price) || price <= 0) {
+        showToast('Please provide a valid product title, brand, and sale price', 'error');
+        return;
+      }
+
+      const saveBtn = document.getElementById('btn-save-add');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Creating...';
 
       const primaryImage = addingPhotos[0] || '/images/products/placeholder.jpg';
 
@@ -1190,9 +1204,7 @@
                 <button type="button" class="admin-btn admin-btn-secondary text-[10px] py-1 px-2 font-mono btn-view-order-details" data-order-id="${orderId}">
                   Full Receipt ☌
                 </button>
-                <button type="button" class="admin-btn admin-btn-secondary text-[10px] py-1 px-2 font-mono btn-edit-order" data-order-id="${orderId}">
-                  Edit ✏️
-                </button>
+
               </div>
 
               <button type="button" class="text-rose-400 hover:text-rose-300 text-[10px] font-mono uppercase tracking-wider px-2 py-1 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors btn-delete-order" data-order-id="${orderId}">
@@ -1321,9 +1333,7 @@
                 <button type="button" class="px-2 py-1 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-colors btn-view-order-details" data-order-id="${orderId}" title="View Full Order Receipt">
                   View
                 </button>
-                <button type="button" class="px-2 py-1 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-colors btn-edit-order" data-order-id="${orderId}" title="Edit Order & Photos">
-                  Edit
-                </button>
+
                 <button type="button" class="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition-colors btn-delete-order" data-order-id="${orderId}" title="Delete Order">
                   <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                 </button>
@@ -1441,14 +1451,6 @@
         return;
       }
 
-      // Edit Order Modal
-      const btnEditOrder = e.target.closest('.btn-edit-order');
-      if (btnEditOrder) {
-        const orderId = btnEditOrder.getAttribute('data-order-id');
-        const order = currentOrders.find(o => o.order_id === orderId);
-        if (order) openEditOrderModal(order);
-        return;
-      }
 
       // Delete Order
       const btnDelete = e.target.closest('.btn-delete-order');
@@ -1493,246 +1495,7 @@
     });
   }
 
-  // Edit order from inside the detail modal
-  if (btnEditCurrentOrder) {
-    btnEditCurrentOrder.addEventListener('click', () => {
-      const orderId = detailModalOrderId.textContent;
-      const order = currentOrders.find(o => o.order_id === orderId);
-      if (order) {
-        closeModal(orderDetailModal);
-        openEditOrderModal(order);
-      }
-    });
-  }
 
-  // ================= ADD MANUAL ORDER GALLERY & MODAL =================
-  function renderAddOrderPhotos() {
-    renderPhotoGalleryGrid(addOrderPhotosList, addOrderPhotos, false);
-  }
-
-  setupGalleryContainerListeners(addOrderPhotosList, () => addOrderPhotos, renderAddOrderPhotos);
-  setupDropzoneEvents(document.querySelector('label[for="add-order-photo-upload"]'), addOrderPhotoUpload, () => addOrderPhotos, renderAddOrderPhotos, addOrderUploadStatus);
-
-  if (btnAddOrderPhotoUrl) {
-    btnAddOrderPhotoUrl.addEventListener('click', () => {
-      const url = addOrderPhotoUrlInput.value.trim();
-      if (!url) return;
-      addOrderPhotos.push(url);
-      addOrderPhotoUrlInput.value = '';
-      renderAddOrderPhotos();
-      showToast('Photo added to order');
-    });
-  }
-
-  if (addOrderPhotoUpload) {
-    addOrderPhotoUpload.addEventListener('change', (e) => {
-      handleMultipleFileUpload(e.target.files, () => addOrderPhotos, renderAddOrderPhotos, addOrderUploadStatus, addOrderPhotoUpload);
-    });
-  }
-
-  if (btnOpenAddOrder) {
-    btnOpenAddOrder.addEventListener('click', () => {
-      if (addOrderForm) addOrderForm.reset();
-      addOrderPhotos = [];
-      renderAddOrderPhotos();
-      openModal(addOrderModal);
-    });
-  }
-
-  if (addOrderForm) {
-    addOrderForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const saveBtn = document.getElementById('btn-save-add-order');
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Creating...';
-
-      const customer_name = document.getElementById('add-order-name').value.trim();
-      const customer_phone = document.getElementById('add-order-phone').value.trim();
-      const customer_email = document.getElementById('add-order-email').value.trim() || null;
-      const shipping_address = document.getElementById('add-order-address').value.trim();
-      const city = document.getElementById('add-order-city').value.trim();
-      const state = document.getElementById('add-order-state').value.trim() || '';
-      const pincode = document.getElementById('add-order-pincode').value.trim();
-      const itemTitle = document.getElementById('add-order-item-title').value.trim();
-      const itemScale = document.getElementById('add-order-item-scale').value.trim() || '1:36 (15x20cm)';
-      const subtotal = Number(document.getElementById('add-order-total').value) || 599;
-      const payment_method = document.getElementById('add-order-payment-method').value;
-      const payment_status = document.getElementById('add-order-payment-status').value;
-      const order_status = document.getElementById('add-order-status').value;
-      const notes = document.getElementById('add-order-notes').value.trim() || null;
-
-      const order_id = `GW-ORD-${Date.now().toString().slice(-6)}`;
-      const items = [{
-        name: itemTitle,
-        scale: itemScale,
-        quantity: 1,
-        price: subtotal,
-        image: addOrderPhotos[0] || '/images/logo-footer.png'
-      }];
-
-      const newOrder = {
-        order_id,
-        customer_name,
-        customer_phone,
-        customer_email,
-        shipping_address,
-        city,
-        state,
-        pincode,
-        items,
-        subtotal,
-        payment_method,
-        payment_status,
-        payment_id: payment_method === 'razorpay' ? `pay_manual_${Date.now()}` : `${payment_method.toUpperCase()}_DIRECT`,
-        order_status,
-        courier_partner: 'Bluedart Express',
-        tracking_number: null,
-        notes,
-        photos: addOrderPhotos,
-        images: addOrderPhotos,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      try {
-        const { data, error } = await supabase
-          .from('orders')
-          .insert([newOrder])
-          .select();
-
-        if (error) throw error;
-
-        currentOrders.unshift(data && data[0] ? data[0] : newOrder);
-        renderOrdersTable();
-        updateOrdersStats();
-        closeModal(addOrderModal);
-        showToast(`Created Order #${order_id} successfully!`);
-      } catch (err) {
-        console.error('Insert order failed:', err);
-        showToast('Failed to create order: ' + err.message, 'error');
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Create Order';
-      }
-    });
-  }
-
-  // ================= EDIT ORDER GALLERY & MODAL =================
-  function renderEditOrderPhotos() {
-    renderPhotoGalleryGrid(editOrderPhotosList, editOrderPhotos, false);
-  }
-
-  setupGalleryContainerListeners(editOrderPhotosList, () => editOrderPhotos, renderEditOrderPhotos);
-  setupDropzoneEvents(document.querySelector('label[for="edit-order-photo-upload"]'), editOrderPhotoUpload, () => editOrderPhotos, renderEditOrderPhotos, editOrderUploadStatus);
-
-  if (btnEditOrderPhotoUrl) {
-    btnEditOrderPhotoUrl.addEventListener('click', () => {
-      const url = editOrderPhotoUrlInput.value.trim();
-      if (!url) return;
-      editOrderPhotos.push(url);
-      editOrderPhotoUrlInput.value = '';
-      renderEditOrderPhotos();
-      showToast('Photo added to order');
-    });
-  }
-
-  if (editOrderPhotoUpload) {
-    editOrderPhotoUpload.addEventListener('change', (e) => {
-      handleMultipleFileUpload(e.target.files, () => editOrderPhotos, renderEditOrderPhotos, editOrderUploadStatus, editOrderPhotoUpload);
-    });
-  }
-
-  function openEditOrderModal(order) {
-    if (!editOrderModal) return;
-    document.getElementById('edit-order-id').value = order.order_id;
-    document.getElementById('edit-order-id-badge').textContent = order.order_id;
-    document.getElementById('edit-order-name').value = order.customer_name || '';
-    document.getElementById('edit-order-phone').value = order.customer_phone || '';
-    document.getElementById('edit-order-email').value = order.customer_email || '';
-    document.getElementById('edit-order-address').value = order.shipping_address || '';
-    document.getElementById('edit-order-city').value = order.city || '';
-    document.getElementById('edit-order-state').value = order.state || '';
-    document.getElementById('edit-order-pincode').value = order.pincode || '';
-    document.getElementById('edit-order-status').value = order.order_status || 'Order Confirmed';
-    document.getElementById('edit-order-courier').value = order.courier_partner || 'Bluedart Express';
-    document.getElementById('edit-order-tracking').value = order.tracking_number || '';
-    document.getElementById('edit-order-notes').value = order.notes || '';
-
-    // Initialize Order Photos
-    if (Array.isArray(order.photos) && order.photos.length > 0) {
-      editOrderPhotos = [...order.photos];
-    } else if (Array.isArray(order.images) && order.images.length > 0) {
-      editOrderPhotos = [...order.images];
-    } else {
-      editOrderPhotos = [];
-    }
-
-    renderEditOrderPhotos();
-    openModal(editOrderModal);
-  }
-
-  if (editOrderForm) {
-    editOrderForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const saveBtn = document.getElementById('btn-save-edit-order');
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Saving...';
-
-      const orderId = document.getElementById('edit-order-id').value;
-      const customer_name = document.getElementById('edit-order-name').value.trim();
-      const customer_phone = document.getElementById('edit-order-phone').value.trim();
-      const customer_email = document.getElementById('edit-order-email').value.trim() || null;
-      const shipping_address = document.getElementById('edit-order-address').value.trim();
-      const city = document.getElementById('edit-order-city').value.trim();
-      const state = document.getElementById('edit-order-state').value.trim() || null;
-      const pincode = document.getElementById('edit-order-pincode').value.trim();
-      const order_status = document.getElementById('edit-order-status').value;
-      const courier_partner = document.getElementById('edit-order-courier').value;
-      const tracking_number = document.getElementById('edit-order-tracking').value.trim() || null;
-      const notes = document.getElementById('edit-order-notes').value.trim() || null;
-
-      const payload = {
-        customer_name,
-        customer_phone,
-        customer_email,
-        shipping_address,
-        city,
-        state,
-        pincode,
-        order_status,
-        courier_partner,
-        tracking_number,
-        notes,
-        photos: editOrderPhotos,
-        images: editOrderPhotos,
-        updated_at: new Date().toISOString()
-      };
-
-      try {
-        const { error } = await supabase
-          .from('orders')
-          .update(payload)
-          .eq('order_id', orderId);
-
-        if (error) throw error;
-
-        const idx = currentOrders.findIndex(o => o.order_id === orderId);
-        if (idx !== -1) {
-          currentOrders[idx] = { ...currentOrders[idx], ...payload };
-        }
-        renderOrdersTable();
-        updateOrdersStats();
-        closeModal(editOrderModal);
-        showToast(`Order #${orderId} updated successfully`);
-      } catch (err) {
-        console.error('Update order failed:', err);
-        showToast('Failed to update order: ' + err.message, 'error');
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save Order';
-      }
-    });
-  }
 
   // Open Order Details Modal
   function openOrderDetailModal(order) {
