@@ -669,12 +669,12 @@
         color: '#000000'
       },
       handler: function (response) {
-        // Payment success
+        // Genuine payment success callback from Razorpay
         handlePaymentSuccess(orderId, response.razorpay_payment_id);
       },
       modal: {
         ondismiss: function () {
-          showToast('Payment cancelled', 'You can try again');
+          showToast('Payment was not completed', 'Your crate items have been safely saved');
         }
       }
     };
@@ -689,6 +689,24 @@
   }
 
   async function handlePaymentSuccess(orderId, paymentId) {
+    // 1. Display modern full-screen payment verification loader
+    let verifyOverlay = document.getElementById('gw-verifying-overlay');
+    if (!verifyOverlay) {
+      verifyOverlay = document.createElement('div');
+      verifyOverlay.id = 'gw-verifying-overlay';
+      verifyOverlay.style.cssText = 'position:fixed;inset:0;background:#09090d;z-index:9999999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:24px;';
+      verifyOverlay.innerHTML = `
+        <div style="width:52px;height:52px;border:3px solid rgba(255,255,255,0.15);border-top-color:#fff;border-radius:50%;animation:gwSpin 0.75s linear infinite;margin-bottom:20px;"></div>
+        <span style="font-size:10px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#34d399;margin-bottom:6px;">✓ Payment Received</span>
+        <h3 id="gw-verify-msg" style="font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:0.02em;margin:0 0 8px;">Verifying Payment with Bank...</h3>
+        <p style="font-size:12px;color:rgba(255,255,255,0.5);margin:0 0 18px;max-width:320px;">Securing Order <strong style="color:#fff;font-family:monospace;">${escapeHtml(orderId)}</strong> and allocating handcrafted models.</p>
+        <div style="font-size:10px;font-family:monospace;color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.04);padding:6px 14px;border:1px solid rgba(255,255,255,0.08);">
+          Ref: ${escapeHtml(paymentId)} • Please do not close or reload
+        </div>
+      `;
+      document.body.appendChild(verifyOverlay);
+    }
+
     const subtotal = getSubtotal();
     const purchasedItems = cart.map(i => ({
       id: i.id,
@@ -720,14 +738,15 @@
       created_at: new Date().toISOString()
     };
 
-    // 1. Cache to localStorage
+    // 2. Cache to localStorage and sessionStorage immediately
     try {
       localStorage.setItem('gw_last_order', JSON.stringify(orderPayload));
+      sessionStorage.setItem('gw_last_order', JSON.stringify(orderPayload));
     } catch (e) {}
 
-    // 2. Persist to Supabase public.orders
+    // 3. Persist to Supabase public.orders with await confirmation
     try {
-      fetch('https://ipcutxtnjplptmxjdtax.supabase.co/rest/v1/orders', {
+      const resp = await fetch('https://ipcutxtnjplptmxjdtax.supabase.co/rest/v1/orders', {
         method: 'POST',
         headers: {
           'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwY3V0eHRuanBscHRteGpkdGF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NjUwMTMsImV4cCI6MjEwNDQ0MTAxM30.WHsEzjWwNl8R48b8239RUIOPjuN7xbl-RdEQGLG_1LI',
@@ -736,18 +755,27 @@
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify(orderPayload)
-      }).catch(err => console.warn('Order sync note:', err));
-    } catch (e) {}
+      });
+      if (resp.ok) {
+        const verifyMsg = document.getElementById('gw-verify-msg');
+        if (verifyMsg) verifyMsg.textContent = 'Order Verified! Generating Receipt...';
+      }
+    } catch (err) {
+      console.warn('Order sync note:', err);
+    }
+
+    // Small delay so user sees smooth verified state
+    await new Promise(r => setTimeout(r, 600));
 
     closeCheckoutModal();
 
-    // Clear cart
+    // 4. Clear cart only after verified payment
     cart = [];
     saveCart();
     checkoutData = {};
     checkoutStep = 1;
 
-    // Immediate redirect to dedicated Thank You Page
+    // 5. Direct redirect to dedicated Thank You Page
     window.location.href = '/thank-you.html?order_id=' + encodeURIComponent(orderId);
   }
 

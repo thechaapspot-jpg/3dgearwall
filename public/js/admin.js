@@ -782,6 +782,7 @@
   let currentOrders = [];
 
   const ordersTableBody = document.getElementById('orders-table-body');
+  const ordersCardsList = document.getElementById('orders-cards-list');
   const statOrdersTotal = document.getElementById('stat-orders-total');
   const statOrdersRevenue = document.getElementById('stat-orders-revenue');
   const statOrdersPending = document.getElementById('stat-orders-pending');
@@ -790,18 +791,29 @@
   const ordersFilterStatus = document.getElementById('orders-filter-status');
   const btnRefreshOrders = document.getElementById('btn-refresh-orders');
 
+  // Order Details Modal
+  const orderDetailModal = document.getElementById('order-detail-modal');
+  const orderDetailBody = document.getElementById('order-detail-body');
+  const detailModalOrderId = document.getElementById('detail-modal-order-id');
+  const btnViewCustomerTracking = document.getElementById('btn-view-customer-tracking');
+  const btnDeleteCurrentOrder = document.getElementById('btn-delete-current-order');
+
   async function loadOrders() {
-    if (!ordersTableBody) return;
-    ordersTableBody.innerHTML = `
-      <tr>
-        <td colspan="6" class="py-12 text-center text-white/40">
-          <div class="inline-flex items-center gap-2">
-            <svg class="animate-spin h-4 w-4 text-white/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-            <span>Loading orders from Supabase...</span>
-          </div>
-        </td>
-      </tr>
+    const loadingHtml = `
+      <div class="py-12 text-center text-white/40">
+        <div class="inline-flex items-center gap-2">
+          <svg class="animate-spin h-4 w-4 text-white/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+          <span>Loading orders from Supabase...</span>
+        </div>
+      </div>
     `;
+
+    if (ordersTableBody) {
+      ordersTableBody.innerHTML = `<tr><td colspan="6">${loadingHtml}</td></tr>`;
+    }
+    if (ordersCardsList) {
+      ordersCardsList.innerHTML = loadingHtml;
+    }
 
     try {
       const { data, error } = await supabase
@@ -816,13 +828,9 @@
       renderOrdersTable();
     } catch (err) {
       console.error('Failed to load orders:', err);
-      ordersTableBody.innerHTML = `
-        <tr>
-          <td colspan="6" class="py-8 text-center text-red-400">
-            Failed to load orders: ${escapeHtml(err.message)}
-          </td>
-        </tr>
-      `;
+      const errHtml = `<div class="py-8 text-center text-red-400">Failed to load orders: ${escapeHtml(err.message)}</div>`;
+      if (ordersTableBody) ordersTableBody.innerHTML = `<tr><td colspan="6">${errHtml}</td></tr>`;
+      if (ordersCardsList) ordersCardsList.innerHTML = errHtml;
       showToast('Error loading orders: ' + err.message, 'error');
     }
   }
@@ -860,125 +868,295 @@
   }
 
   function renderOrdersTable() {
-    if (!ordersTableBody) return;
     const filtered = getFilteredOrders();
 
+    // 1. EMPTY STATE
     if (filtered.length === 0) {
-      ordersTableBody.innerHTML = `
-        <tr>
-          <td colspan="6" class="py-12 text-center text-white/40">
-            No customer orders match the current filter.
-          </td>
-        </tr>
+      const emptyMsg = `
+        <div class="py-12 text-center text-white/40 space-y-2">
+          <p class="text-sm font-semibold text-white/60">No customer orders found.</p>
+          <p class="text-xs text-white/40">Verified orders will automatically appear here once customers checkout via Razorpay.</p>
+        </div>
       `;
+      if (ordersTableBody) ordersTableBody.innerHTML = `<tr><td colspan="6">${emptyMsg}</td></tr>`;
+      if (ordersCardsList) ordersCardsList.innerHTML = `<div class="admin-card p-6">${emptyMsg}</div>`;
       return;
     }
 
-    ordersTableBody.innerHTML = filtered.map(o => {
-      const orderId = escapeHtml(o.order_id);
-      const name = escapeHtml(o.customer_name || 'Customer');
-      const phone = escapeHtml(o.customer_phone || '');
-      const email = escapeHtml(o.customer_email || '');
-      const address = escapeHtml(o.shipping_address || '');
-      const city = escapeHtml(o.city || '');
-      const pincode = escapeHtml(o.pincode || '');
-      const subtotal = Number(o.subtotal || 0);
-      const payId = escapeHtml(o.payment_id || 'N/A');
-      const status = o.order_status || 'Order Confirmed';
-      const carrier = escapeHtml(o.courier_partner || 'Bluedart Express');
-      const awb = escapeHtml(o.tracking_number || '');
-      const dateStr = new Date(o.created_at).toLocaleString('en-IN', {
-        day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+    // 2. RENDER MOBILE CARDS (Visible on mobile & tablets < 1024px)
+    if (ordersCardsList) {
+      ordersCardsList.innerHTML = filtered.map(o => {
+        const orderId = escapeHtml(o.order_id);
+        const name = escapeHtml(o.customer_name || 'Customer');
+        const phone = escapeHtml(o.customer_phone || '');
+        const cleanPhone = phone.replace(/[^0-9]/g, '').slice(-10);
+        const email = escapeHtml(o.customer_email || '');
+        const address = escapeHtml(o.shipping_address || '');
+        const city = escapeHtml(o.city || '');
+        const state = escapeHtml(o.state || '');
+        const pincode = escapeHtml(o.pincode || '');
+        const subtotal = Number(o.subtotal || 0);
+        const payId = escapeHtml(o.payment_id || 'Captured');
+        const status = o.order_status || 'Order Confirmed';
+        const carrier = escapeHtml(o.courier_partner || 'Bluedart Express');
+        const awb = escapeHtml(o.tracking_number || '');
+        const dateStr = new Date(o.created_at).toLocaleString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        const items = Array.isArray(o.items) ? o.items : [];
 
-      const items = Array.isArray(o.items) ? o.items : [];
-
-      return `
-        <tr class="hover:bg-white/[0.03] transition-colors border-b border-white/5" data-order-row="${orderId}">
-          <!-- Order ID & Date -->
-          <td class="py-3.5 px-4 align-top whitespace-nowrap">
-            <span class="font-mono font-bold text-xs text-white block">${orderId}</span>
-            <span class="text-[11px] font-mono text-white/40 block mt-0.5">${dateStr}</span>
-            <span class="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">PAID (Razorpay)</span>
-          </td>
-
-          <!-- Customer & Address -->
-          <td class="py-3.5 px-4 align-top">
-            <p class="font-bold text-xs text-white">${name}</p>
-            <p class="text-[11px] font-mono text-white/70">
-              <a href="tel:${phone}" class="hover:underline text-[var(--brand-orange)] font-semibold">${phone}</a>
-              ${email ? ` • <span class="text-white/50">${email}</span>` : ''}
-            </p>
-            <p class="text-[11px] text-white/50 mt-1 leading-tight line-clamp-2" title="${address}">
-              ${address}, ${city} - ${pincode}
-            </p>
-          </td>
-
-          <!-- Items & Total -->
-          <td class="py-3.5 px-4 align-top">
-            <div class="space-y-1 mb-1.5">
-              ${items.map(it => `
-                <div class="text-[11px] text-white/80 line-clamp-1">
-                  • <strong>${escapeHtml(it.name || 'Frame')}</strong> × ${it.quantity || 1} <span class="text-white/40">(${it.scale || '1:36'})</span>
+        return `
+          <div class="admin-card p-4 space-y-3.5 border-l-4 ${status === 'Delivered' ? 'border-l-emerald-500' : (status === 'Cancelled' ? 'border-l-rose-500' : 'border-l-[var(--brand-orange)]')}" data-order-card="${orderId}">
+            
+            <!-- Card Header: ID, Date, Amount & Status -->
+            <div class="flex items-start justify-between gap-2 border-b border-white/10 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-mono font-black text-sm text-white tracking-wider">${orderId}</span>
+                  <button type="button" class="btn-copy-id text-white/50 hover:text-white p-1 hover:bg-white/10 transition-colors" data-copy-id="${orderId}" title="Copy Order ID">
+                    <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                  </button>
                 </div>
-              `).join('')}
-            </div>
-            <div class="font-mono font-black text-sm text-emerald-400">
-              ₹${subtotal.toLocaleString('en-IN')}
-            </div>
-            <div class="text-[10px] font-mono text-white/40" title="${payId}">
-              Ref: ${payId.slice(0, 16)}...
-            </div>
-          </td>
-
-          <!-- Live Shipment Status -->
-          <td class="py-3.5 px-4 align-top">
-            <select class="admin-input text-xs py-1.5 px-2 font-semibold cursor-pointer select-status" data-order-id="${orderId}">
-              <option value="Order Confirmed" ${status === 'Order Confirmed' ? 'selected' : ''}>1. Order Confirmed</option>
-              <option value="Handcrafted & Framing" ${status === 'Handcrafted & Framing' ? 'selected' : ''}>2. Framing & QC</option>
-              <option value="Dispatched / In Transit" ${status === 'Dispatched / In Transit' ? 'selected' : ''}>3. In Transit</option>
-              <option value="Out for Delivery" ${status === 'Out for Delivery' ? 'selected' : ''}>4. Out for Delivery</option>
-              <option value="Delivered" ${status === 'Delivered' ? 'selected' : ''}>5. Delivered</option>
-            </select>
-            <span class="text-[10px] text-white/40 block mt-1">Live customer status</span>
-          </td>
-
-          <!-- Logistics & AWB -->
-          <td class="py-3.5 px-4 align-top">
-            <div class="space-y-1.5">
-              <input type="text" placeholder="AWB / Tracking No." value="${awb}" class="admin-input text-xs py-1 px-2 font-mono input-awb" data-order-id="${orderId}" />
-              <div class="flex gap-1.5">
-                <select class="admin-input text-[11px] py-1 px-1.5 select-carrier flex-1" data-order-id="${orderId}">
-                  <option value="Bluedart Express" ${carrier === 'Bluedart Express' ? 'selected' : ''}>Bluedart</option>
-                  <option value="Delhivery" ${carrier === 'Delhivery' ? 'selected' : ''}>Delhivery</option>
-                  <option value="DTDC Express" ${carrier === 'DTDC Express' ? 'selected' : ''}>DTDC</option>
-                  <option value="India SpeedPost" ${carrier === 'India SpeedPost' ? 'selected' : ''}>SpeedPost</option>
-                </select>
-                <button type="button" class="px-2 py-1 text-[10px] font-bold uppercase bg-white/10 hover:bg-white/20 text-white border border-white/20 btn-save-logistics" data-order-id="${orderId}">
-                  Save
-                </button>
+                <span class="text-[11px] font-mono text-white/40 block mt-0.5">${dateStr}</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono font-black text-base text-emerald-400 block">₹${subtotal.toLocaleString('en-IN')}</span>
+                <span class="inline-block mt-0.5 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">PAID (Razorpay)</span>
               </div>
             </div>
-          </td>
 
-          <!-- Actions -->
-          <td class="py-3.5 px-4 align-top text-right whitespace-nowrap">
-            <a href="/track.html?order_id=${orderId}" target="_blank" class="admin-btn admin-btn-secondary text-[10px] py-1 px-2 font-mono" title="Test tracking in real-time">
-              Track ↗
-            </a>
-          </td>
-        </tr>
-      `;
-    }).join('');
+            <!-- Customer & Complete Full Address Block -->
+            <div class="p-3 bg-white/[0.02] border border-white/10 space-y-2">
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <span class="font-bold text-sm text-white">${name}</span>
+                <div class="flex items-center gap-1.5">
+                  ${phone ? `
+                    <a href="tel:${phone}" class="px-2 py-1 bg-white/10 hover:bg-white/20 text-white font-mono text-[11px] font-bold inline-flex items-center gap-1 border border-white/15 transition-colors">
+                      <span>📞</span>
+                      <span>${phone}</span>
+                    </a>
+                  ` : ''}
+                  ${cleanPhone ? `
+                    <a href="https://wa.me/91${cleanPhone}?text=${encodeURIComponent('Hello ' + name + ', regarding your 3D Gear Wall order ' + orderId + ':')}" target="_blank" class="px-2 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono text-[11px] font-bold inline-flex items-center gap-1 border border-emerald-500/30 transition-colors">
+                      <span>💬 WhatsApp</span>
+                    </a>
+                  ` : ''}
+                </div>
+              </div>
+
+              ${email ? `<div class="text-[11px] font-mono text-white/50">${email}</div>` : ''}
+
+              <div class="text-xs text-white/80 pt-1.5 border-t border-white/5 leading-relaxed">
+                <span class="text-[10px] font-mono uppercase text-white/40 block mb-0.5">Shipping Address:</span>
+                <span>${address}, ${city} ${state ? state : ''} - <strong>${pincode}</strong></span>
+              </div>
+            </div>
+
+            <!-- Ordered Items Breakdown -->
+            <div class="space-y-1.5 py-0.5">
+              <span class="text-[10px] font-mono uppercase tracking-wider text-white/50 block">Ordered Items (${items.length}):</span>
+              <div class="space-y-1.5">
+                ${items.map(it => `
+                  <div class="flex items-center justify-between gap-2 p-2 bg-[#060609] border border-white/10 text-xs">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <div class="w-10 h-10 bg-black border border-white/10 overflow-hidden flex-shrink-0">
+                        <img src="${it.image || '/images/logo-footer.png'}" alt="" class="w-full h-full object-cover" onerror="this.src='/images/logo-footer.png'" />
+                      </div>
+                      <div class="min-w-0">
+                        <p class="font-bold text-white truncate text-xs">${escapeHtml(it.name || 'Frame')}</p>
+                        <span class="text-[10px] font-mono text-white/50">Scale: ${escapeHtml(it.scale || '1:36')} • Qty: ${it.quantity || 1}</span>
+                      </div>
+                    </div>
+                    <span class="font-mono font-bold text-white whitespace-nowrap text-xs">₹${Number((it.price || 0) * (it.quantity || 1)).toLocaleString('en-IN')}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Shipment Status & Courier Section -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <div>
+                <label class="block text-[10px] font-mono uppercase tracking-wider text-white/50 mb-1">Live Shipment Status</label>
+                <select class="admin-input text-xs py-1.5 font-bold cursor-pointer select-status" data-order-id="${orderId}">
+                  <option value="Order Confirmed" ${status === 'Order Confirmed' ? 'selected' : ''}>1. Order Confirmed</option>
+                  <option value="Handcrafted & Framing" ${status === 'Handcrafted & Framing' ? 'selected' : ''}>2. Framing & QC</option>
+                  <option value="Dispatched / In Transit" ${status === 'Dispatched / In Transit' ? 'selected' : ''}>3. In Transit</option>
+                  <option value="Out for Delivery" ${status === 'Out for Delivery' ? 'selected' : ''}>4. Out for Delivery</option>
+                  <option value="Delivered" ${status === 'Delivered' ? 'selected' : ''}>5. Delivered</option>
+                  <option value="Cancelled" ${status === 'Cancelled' ? 'selected' : ''}>6. Cancelled</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-mono uppercase tracking-wider text-white/50 mb-1">Carrier & AWB</label>
+                <div class="flex gap-1.5">
+                  <select class="admin-input text-[11px] py-1 px-1.5 select-carrier w-28" data-order-id="${orderId}">
+                    <option value="Bluedart Express" ${carrier === 'Bluedart Express' ? 'selected' : ''}>Bluedart</option>
+                    <option value="Delhivery" ${carrier === 'Delhivery' ? 'selected' : ''}>Delhivery</option>
+                    <option value="DTDC Express" ${carrier === 'DTDC Express' ? 'selected' : ''}>DTDC</option>
+                    <option value="India SpeedPost" ${carrier === 'India SpeedPost' ? 'selected' : ''}>SpeedPost</option>
+                  </select>
+                  <input type="text" placeholder="AWB Tracking" value="${awb}" class="admin-input text-xs py-1 px-2 font-mono input-awb flex-1 min-w-0" data-order-id="${orderId}" />
+                  <button type="button" class="admin-btn admin-btn-secondary px-2.5 py-1 text-[10px] font-mono btn-save-logistics" data-order-id="${orderId}">Save</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bottom Actions: Track Live, Details & Delete -->
+            <div class="flex items-center justify-between pt-2 border-t border-white/10">
+              <div class="flex items-center gap-2">
+                <a href="/track.html?order_id=${orderId}" target="_blank" class="admin-btn admin-btn-secondary text-[10px] py-1 px-2.5 font-mono">
+                  Track Live ↗
+                </a>
+                <button type="button" class="admin-btn admin-btn-secondary text-[10px] py-1 px-2.5 font-mono btn-view-order-details" data-order-id="${orderId}">
+                  Full Receipt ☌
+                </button>
+              </div>
+
+              <button type="button" class="text-rose-400 hover:text-rose-300 text-[10px] font-mono uppercase tracking-wider px-2 py-1 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors btn-delete-order" data-order-id="${orderId}">
+                🗑 Delete
+              </button>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 3. RENDER DESKTOP TABLE (Visible on screens >= 1024px)
+    if (ordersTableBody) {
+      ordersTableBody.innerHTML = filtered.map(o => {
+        const orderId = escapeHtml(o.order_id);
+        const name = escapeHtml(o.customer_name || 'Customer');
+        const phone = escapeHtml(o.customer_phone || '');
+        const cleanPhone = phone.replace(/[^0-9]/g, '').slice(-10);
+        const email = escapeHtml(o.customer_email || '');
+        const address = escapeHtml(o.shipping_address || '');
+        const city = escapeHtml(o.city || '');
+        const state = escapeHtml(o.state || '');
+        const pincode = escapeHtml(o.pincode || '');
+        const subtotal = Number(o.subtotal || 0);
+        const payId = escapeHtml(o.payment_id || 'N/A');
+        const status = o.order_status || 'Order Confirmed';
+        const carrier = escapeHtml(o.courier_partner || 'Bluedart Express');
+        const awb = escapeHtml(o.tracking_number || '');
+        const dateStr = new Date(o.created_at).toLocaleString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        const items = Array.isArray(o.items) ? o.items : [];
+
+        return `
+          <tr class="hover:bg-white/[0.03] transition-colors border-b border-white/5" data-order-row="${orderId}">
+            <!-- Order ID & Date -->
+            <td class="py-3.5 px-4 align-top whitespace-nowrap">
+              <div class="flex items-center gap-1.5">
+                <span class="font-mono font-bold text-xs text-white">${orderId}</span>
+                <button type="button" class="btn-copy-id text-white/40 hover:text-white" data-copy-id="${orderId}" title="Copy Order ID">
+                  <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                </button>
+              </div>
+              <span class="text-[11px] font-mono text-white/40 block mt-0.5">${dateStr}</span>
+              <span class="inline-block mt-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">PAID (Razorpay)</span>
+            </td>
+
+            <!-- Customer & Address -->
+            <td class="py-3.5 px-4 align-top max-w-xs">
+              <div class="flex items-center justify-between gap-2">
+                <p class="font-bold text-xs text-white">${name}</p>
+                ${cleanPhone ? `
+                  <a href="https://wa.me/91${cleanPhone}?text=${encodeURIComponent('Hello ' + name + ', regarding your 3D Gear Wall order ' + orderId + ':')}" target="_blank" class="text-[10px] font-mono text-emerald-400 hover:underline" title="Chat on WhatsApp">💬 WA</a>
+                ` : ''}
+              </div>
+              <p class="text-[11px] font-mono text-white/70">
+                <a href="tel:${phone}" class="hover:underline text-[var(--brand-orange)] font-semibold">${phone}</a>
+                ${email ? ` • <span class="text-white/50">${email}</span>` : ''}
+              </p>
+              <p class="text-[11px] text-white/70 mt-1 leading-snug" title="${address}">
+                ${address}, ${city} ${state ? state : ''} - <strong>${pincode}</strong>
+              </p>
+            </td>
+
+            <!-- Items & Total -->
+            <td class="py-3.5 px-4 align-top">
+              <div class="space-y-1 mb-1.5 max-w-xs">
+                ${items.map(it => `
+                  <div class="text-[11px] text-white/80 line-clamp-1">
+                    • <strong>${escapeHtml(it.name || 'Frame')}</strong> × ${it.quantity || 1} <span class="text-white/40">(${it.scale || '1:36'})</span>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="font-mono font-black text-sm text-emerald-400">
+                ₹${subtotal.toLocaleString('en-IN')}
+              </div>
+              <div class="text-[10px] font-mono text-white/40" title="${payId}">
+                Ref: ${payId.slice(0, 16)}...
+              </div>
+            </td>
+
+            <!-- Live Shipment Status -->
+            <td class="py-3.5 px-4 align-top">
+              <select class="admin-input text-xs py-1.5 px-2 font-semibold cursor-pointer select-status" data-order-id="${orderId}">
+                <option value="Order Confirmed" ${status === 'Order Confirmed' ? 'selected' : ''}>1. Order Confirmed</option>
+                <option value="Handcrafted & Framing" ${status === 'Handcrafted & Framing' ? 'selected' : ''}>2. Framing & QC</option>
+                <option value="Dispatched / In Transit" ${status === 'Dispatched / In Transit' ? 'selected' : ''}>3. In Transit</option>
+                <option value="Out for Delivery" ${status === 'Out for Delivery' ? 'selected' : ''}>4. Out for Delivery</option>
+                <option value="Delivered" ${status === 'Delivered' ? 'selected' : ''}>5. Delivered</option>
+                <option value="Cancelled" ${status === 'Cancelled' ? 'selected' : ''}>6. Cancelled</option>
+              </select>
+              <span class="text-[10px] text-white/40 block mt-1">Live customer tracking</span>
+            </td>
+
+            <!-- Logistics & AWB -->
+            <td class="py-3.5 px-4 align-top">
+              <div class="space-y-1.5">
+                <input type="text" placeholder="AWB / Tracking No." value="${awb}" class="admin-input text-xs py-1 px-2 font-mono input-awb" data-order-id="${orderId}" />
+                <div class="flex gap-1.5">
+                  <select class="admin-input text-[11px] py-1 px-1.5 select-carrier flex-1" data-order-id="${orderId}">
+                    <option value="Bluedart Express" ${carrier === 'Bluedart Express' ? 'selected' : ''}>Bluedart</option>
+                    <option value="Delhivery" ${carrier === 'Delhivery' ? 'selected' : ''}>Delhivery</option>
+                    <option value="DTDC Express" ${carrier === 'DTDC Express' ? 'selected' : ''}>DTDC</option>
+                    <option value="India SpeedPost" ${carrier === 'India SpeedPost' ? 'selected' : ''}>SpeedPost</option>
+                  </select>
+                  <button type="button" class="px-2 py-1 text-[10px] font-bold uppercase bg-white/10 hover:bg-white/20 text-white border border-white/20 btn-save-logistics" data-order-id="${orderId}">
+                    Save
+                  </button>
+                </div>
+              </div>
+            </td>
+
+            <!-- Actions -->
+            <td class="py-3.5 px-4 align-top text-right whitespace-nowrap">
+              <div class="inline-flex items-center gap-1.5">
+                <a href="/track.html?order_id=${orderId}" target="_blank" class="p-1.5 text-white/60 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors" title="Test tracking in real-time">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                </a>
+                <button type="button" class="px-2 py-1 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-colors btn-view-order-details" data-order-id="${orderId}" title="View Full Order Receipt">
+                  View
+                </button>
+                <button type="button" class="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition-colors btn-delete-order" data-order-id="${orderId}" title="Delete Order">
+                  <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
   }
 
-  // Orders Table Event Delegation
-  if (ordersTableBody) {
+  // Unified Order Event Listeners for both Table & Mobile Cards
+  const ordersTabContainer = document.getElementById('tab-content-orders');
+  if (ordersTabContainer) {
     // 1. Status change listener
-    ordersTableBody.addEventListener('change', async (e) => {
+    ordersTabContainer.addEventListener('change', async (e) => {
       const select = e.target.closest('.select-status');
       if (!select) return;
 
@@ -997,6 +1175,7 @@
         const ord = currentOrders.find(o => o.order_id === orderId);
         if (ord) ord.order_status = newStatus;
         updateOrdersStats();
+        renderOrdersTable();
         showToast(`Order #${orderId} status updated to "${newStatus}"`);
       } catch (err) {
         console.error('Status update failed:', err);
@@ -1007,57 +1186,228 @@
     });
 
     // 2. Save logistics / AWB listener
-    ordersTableBody.addEventListener('click', async (e) => {
-      const btn = e.target.closest('.btn-save-logistics');
-      if (!btn) return;
+    ordersTabContainer.addEventListener('click', async (e) => {
+      // Save Logistics
+      const btnSaveLogistics = e.target.closest('.btn-save-logistics');
+      if (btnSaveLogistics) {
+        const orderId = btnSaveLogistics.getAttribute('data-order-id');
+        const container = btnSaveLogistics.closest('[data-order-row], [data-order-card]');
+        if (!container) return;
 
-      const orderId = btn.getAttribute('data-order-id');
-      const row = btn.closest('tr');
-      const awbInput = row.querySelector('.input-awb');
-      const carrierSelect = row.querySelector('.select-carrier');
+        const awbInput = container.querySelector('.input-awb');
+        const carrierSelect = container.querySelector('.select-carrier');
 
-      const tracking_number = awbInput ? awbInput.value.trim() : null;
-      const courier_partner = carrierSelect ? carrierSelect.value : 'Bluedart Express';
+        const tracking_number = awbInput ? awbInput.value.trim() : null;
+        const courier_partner = carrierSelect ? carrierSelect.value : 'Bluedart Express';
 
-      btn.disabled = true;
-      btn.textContent = '...';
+        btnSaveLogistics.disabled = true;
+        btnSaveLogistics.textContent = '...';
 
-      try {
-        const { error } = await supabase
-          .from('orders')
-          .update({
-            tracking_number: tracking_number || null,
-            courier_partner: courier_partner,
-            order_status: tracking_number ? 'Dispatched / In Transit' : undefined,
-            updated_at: new Date().toISOString()
-          })
-          .eq('order_id', orderId);
+        try {
+          const { error } = await supabase
+            .from('orders')
+            .update({
+              tracking_number: tracking_number || null,
+              courier_partner: courier_partner,
+              order_status: tracking_number ? 'Dispatched / In Transit' : undefined,
+              updated_at: new Date().toISOString()
+            })
+            .eq('order_id', orderId);
 
-        if (error) throw error;
+          if (error) throw error;
 
-        const ord = currentOrders.find(o => o.order_id === orderId);
-        if (ord) {
-          ord.tracking_number = tracking_number;
-          ord.courier_partner = courier_partner;
-          if (tracking_number) ord.order_status = 'Dispatched / In Transit';
+          const ord = currentOrders.find(o => o.order_id === orderId);
+          if (ord) {
+            ord.tracking_number = tracking_number;
+            ord.courier_partner = courier_partner;
+            if (tracking_number) ord.order_status = 'Dispatched / In Transit';
+          }
+          renderOrdersTable();
+          updateOrdersStats();
+          showToast(`Saved AWB details for Order #${orderId}`);
+        } catch (err) {
+          console.error('AWB save failed:', err);
+          showToast('Failed to save AWB: ' + err.message, 'error');
+        } finally {
+          btnSaveLogistics.disabled = false;
+          btnSaveLogistics.textContent = 'Save';
         }
-        renderOrdersTable();
-        updateOrdersStats();
-        showToast(`Saved AWB details for Order #${orderId}`);
-      } catch (err) {
-        console.error('AWB save failed:', err);
-        showToast('Failed to save AWB: ' + err.message, 'error');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Save';
+        return;
+      }
+
+      // Copy Order ID
+      const btnCopy = e.target.closest('.btn-copy-id');
+      if (btnCopy) {
+        const copyId = btnCopy.getAttribute('data-copy-id');
+        if (copyId) {
+          navigator.clipboard.writeText(copyId).then(() => {
+            showToast(`Copied Order ID: ${copyId}`);
+          }).catch(() => {
+            prompt('Copy Order ID:', copyId);
+          });
+        }
+        return;
+      }
+
+      // View Order Details Modal
+      const btnView = e.target.closest('.btn-view-order-details');
+      if (btnView) {
+        const orderId = btnView.getAttribute('data-order-id');
+        const order = currentOrders.find(o => o.order_id === orderId);
+        if (order) openOrderDetailModal(order);
+        return;
+      }
+
+      // Delete Order
+      const btnDelete = e.target.closest('.btn-delete-order');
+      if (btnDelete) {
+        const orderId = btnDelete.getAttribute('data-order-id');
+        if (orderId) handleDeleteOrder(orderId);
+        return;
       }
     });
   }
 
-  // Orders Filter Events
-  if (ordersSearchInput) ordersSearchInput.addEventListener('input', renderOrdersTable);
-  if (ordersFilterStatus) ordersFilterStatus.addEventListener('change', renderOrdersTable);
-  if (btnRefreshOrders) btnRefreshOrders.addEventListener('click', loadOrders);
+  // Delete Order Handler
+  async function handleDeleteOrder(orderId) {
+    if (!confirm(`Are you sure you want to permanently delete order #${orderId}? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('order_id', orderId);
+
+      if (error) throw error;
+
+      currentOrders = currentOrders.filter(o => o.order_id !== orderId);
+      renderOrdersTable();
+      updateOrdersStats();
+      if (orderDetailModal) closeModal(orderDetailModal);
+      showToast(`Order #${orderId} deleted successfully`);
+    } catch (err) {
+      console.error('Delete order error:', err);
+      showToast('Failed to delete order: ' + err.message, 'error');
+    }
+  }
+
+  // Delete order from inside the detail modal
+  if (btnDeleteCurrentOrder) {
+    btnDeleteCurrentOrder.addEventListener('click', () => {
+      const orderId = btnDeleteCurrentOrder.getAttribute('data-order-id');
+      if (orderId) handleDeleteOrder(orderId);
+    });
+  }
+
+  // Open Order Details Modal
+  function openOrderDetailModal(order) {
+    if (!orderDetailModal || !orderDetailBody) return;
+
+    detailModalOrderId.textContent = order.order_id;
+    if (btnViewCustomerTracking) {
+      btnViewCustomerTracking.href = `/track.html?order_id=${encodeURIComponent(order.order_id)}`;
+    }
+    if (btnDeleteCurrentOrder) {
+      btnDeleteCurrentOrder.setAttribute('data-order-id', order.order_id);
+    }
+
+    const items = Array.isArray(order.items) ? order.items : [];
+    const dateStr = new Date(order.created_at).toLocaleString('en-IN', {
+      dateStyle: 'full',
+      timeStyle: 'medium'
+    });
+    const phone = escapeHtml(order.customer_phone || '');
+    const cleanPhone = phone.replace(/[^0-9]/g, '').slice(-10);
+
+    orderDetailBody.innerHTML = `
+      <!-- Order Summary Card -->
+      <div class="p-4 bg-white/[0.03] border border-white/10 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <span class="text-[10px] font-mono uppercase text-white/50 block mb-0.5">Placement Date & Time</span>
+          <p class="font-mono text-xs text-white">${dateStr}</p>
+        </div>
+        <div class="text-right">
+          <span class="text-[10px] font-mono uppercase text-white/50 block mb-0.5">Total Paid</span>
+          <p class="font-mono font-black text-lg text-emerald-400">₹${Number(order.subtotal || 0).toLocaleString('en-IN')}</p>
+        </div>
+      </div>
+
+      <!-- Customer & Shipping Full Info -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <div class="p-3.5 bg-white/[0.02] border border-white/10 space-y-2">
+          <span class="text-[10px] font-mono uppercase tracking-wider text-white/50 block font-bold">Recipient Customer</span>
+          <p class="font-bold text-sm text-white">${escapeHtml(order.customer_name || 'Customer')}</p>
+          <div class="flex items-center gap-2 pt-1">
+            ${phone ? `
+              <a href="tel:${phone}" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white font-mono text-xs font-bold inline-flex items-center gap-1.5 border border-white/15">
+                <span>📞 Call</span>
+              </a>
+            ` : ''}
+            ${cleanPhone ? `
+              <a href="https://wa.me/91${cleanPhone}?text=${encodeURIComponent('Hello ' + (order.customer_name || '') + ', regarding your 3D Gear Wall order ' + order.order_id + ':')}" target="_blank" class="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono text-xs font-bold inline-flex items-center gap-1.5 border border-emerald-500/30">
+                <span>💬 WhatsApp</span>
+              </a>
+            ` : ''}
+          </div>
+          ${order.customer_email ? `<p class="text-xs font-mono text-white/60">${escapeHtml(order.customer_email)}</p>` : ''}
+        </div>
+
+        <div class="p-3.5 bg-white/[0.02] border border-white/10 space-y-1.5">
+          <span class="text-[10px] font-mono uppercase tracking-wider text-white/50 block font-bold">Delivery Address</span>
+          <p class="text-xs text-white/90 leading-relaxed">${escapeHtml(order.shipping_address || 'No address specified')}</p>
+          <p class="text-xs font-semibold text-white/80">${escapeHtml(order.city || '')} ${escapeHtml(order.state || '')} - <strong class="font-mono text-white">${escapeHtml(order.pincode || '')}</strong></p>
+        </div>
+      </div>
+
+      <!-- Payment & Security -->
+      <div class="p-3.5 bg-white/[0.02] border border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div>
+          <span class="text-[10px] font-mono uppercase text-white/50 block mb-0.5">Razorpay Reference ID</span>
+          <code class="text-xs text-white/80 font-mono bg-black/50 px-2 py-1 border border-white/10">${escapeHtml(order.payment_id || 'N/A')}</code>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-1 bg-emerald-500/20 text-emerald-400 font-mono text-xs font-bold border border-emerald-500/30">PAID & VERIFIED</span>
+        </div>
+      </div>
+
+      <!-- Line Items Breakdown -->
+      <div class="space-y-2">
+        <span class="text-[10px] font-mono uppercase tracking-wider text-white/50 block font-bold">Purchased Items (${items.length}):</span>
+        <div class="space-y-2 max-h-56 overflow-y-auto">
+          ${items.map(it => `
+            <div class="flex items-center justify-between gap-3 p-2.5 bg-[#060609] border border-white/10">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-12 h-12 bg-black border border-white/10 overflow-hidden flex-shrink-0">
+                  <img src="${it.image || '/images/logo-footer.png'}" alt="" class="w-full h-full object-cover" onerror="this.src='/images/logo-footer.png'" />
+                </div>
+                <div class="min-w-0">
+                  <p class="font-bold text-white text-xs sm:text-sm truncate">${escapeHtml(it.name || 'Handcrafted Frame')}</p>
+                  <p class="text-[11px] font-mono text-white/50">Scale: ${escapeHtml(it.scale || '1:36')} • Quantity: ${it.quantity || 1}</p>
+                </div>
+              </div>
+              <span class="font-mono font-bold text-white text-sm whitespace-nowrap">₹${Number((it.price || 0) * (it.quantity || 1)).toLocaleString('en-IN')}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Current Tracking Status in Detail Modal -->
+      <div class="p-3.5 bg-white/[0.02] border border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div>
+          <span class="text-[10px] font-mono uppercase text-white/50 block">Current Status</span>
+          <span class="font-bold text-white text-sm">${escapeHtml(order.order_status || 'Order Confirmed')}</span>
+        </div>
+        <div>
+          <span class="text-[10px] font-mono uppercase text-white/50 block">Carrier & AWB</span>
+          <span class="font-mono text-white/90">${escapeHtml(order.courier_partner || 'Bluedart')} ${order.tracking_number ? `(${escapeHtml(order.tracking_number)})` : '(AWB Pending)'}</span>
+        </div>
+      </div>
+    `;
+
+    openModal(orderDetailModal);
+  }
 
   // Hook into auth
   const origHandleSession = handleSessionChange;
