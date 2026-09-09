@@ -166,7 +166,8 @@
     const idMatch = window.location.pathname.match(/product\/(\d+)/);
     const prodId = idMatch ? idMatch[1] : '';
     if (OUT_OF_STOCK_IDS.includes(prodId)) return true;
-    if (document.querySelector('.gw-stock-badge') || (document.body && document.body.innerHTML.includes('OUT OF STOCK'))) {
+    const heroSection = document.querySelector('main .space-y-6') || document.querySelector('main');
+    if (heroSection && heroSection.querySelector('#live-soldout-badge, .gw-stock-badge, .out-of-stock-badge')) {
       return true;
     }
     return false;
@@ -224,17 +225,20 @@
   }
 
   // 4. "Add to Crate" and "Buy Now" Action Integration
-  function setupCartButtons() {
-    // Extract product details from page
+  function getCurrentProductInfo() {
     const titleEl = document.querySelector('h1');
     const name = titleEl ? titleEl.textContent.trim() : document.title.split('|')[0].trim();
 
-    // Price
-    const priceEl = document.querySelector('main .text-3xl, main .text-4xl, main [class*="text-3xl"]');
+    // Price: find price that is NOT inside .line-through
     let price = 599;
-    if (priceEl) {
-      const match = priceEl.textContent.match(/₹\s*([0-9,]+)/);
-      if (match) price = Number(match[1].replace(/,/g, ''));
+    const priceCandidates = Array.from(document.querySelectorAll('main .text-3xl, main .text-4xl, main [class*="text-3xl"], main .font-black'));
+    for (const el of priceCandidates) {
+      if (el.closest('.line-through') || el.classList.contains('line-through')) continue;
+      const match = el.textContent.match(/₹\s*([0-9,]+)/);
+      if (match) {
+        price = Number(match[1].replace(/,/g, ''));
+        break;
+      }
     }
 
     // Original Price
@@ -261,6 +265,10 @@
     const idMatch = window.location.pathname.match(/product\/(\d+)/);
     const productId = idMatch ? idMatch[1] : ('GW-' + name.substring(0, 10));
 
+    return { id: productId, name, price, originalPrice, scale, image };
+  }
+
+  function setupCartButtons() {
     // Handle Add To Crate
     function handleAddToCartAction(e) {
       if (e) {
@@ -269,14 +277,15 @@
         e.stopPropagation();
       }
 
+      const info = getCurrentProductInfo();
       if (typeof window.addToCart === 'function') {
         window.addToCart({
-          id: productId,
-          name: name,
-          price: price,
-          originalPrice: originalPrice,
-          scale: scale,
-          image: mainImg ? mainImg.src : image,
+          id: info.id,
+          name: info.name,
+          price: info.price,
+          originalPrice: info.originalPrice,
+          scale: info.scale,
+          image: info.image,
           quantity: currentQty
         });
       }
@@ -290,14 +299,15 @@
         e.stopPropagation();
       }
 
+      const info = getCurrentProductInfo();
       if (typeof window.addToCart === 'function') {
         window.addToCart({
-          id: productId,
-          name: name,
-          price: price,
-          originalPrice: originalPrice,
-          scale: scale,
-          image: mainImg ? mainImg.src : image,
+          id: info.id,
+          name: info.name,
+          price: info.price,
+          originalPrice: info.originalPrice,
+          scale: info.scale,
+          image: info.image,
           quantity: currentQty
         }, { silent: true });
       }

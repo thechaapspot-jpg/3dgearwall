@@ -474,3 +474,32 @@ section[class*="bg-[var(--bg-dark)]"] button.bg-white:not(:disabled):hover {
   background-color: rgba(255, 255, 255, 0.9) !important;
   color: #000000 !important;
 }
+
+/* Product Detail Page - Desktop Buy Now Button High-Contrast Fix */
+main button.bg-white[class*="border-2"],
+main button.bg-white[class*="border-black"],
+main button[class*="border-black"][class*="text-black"],
+button[data-cart-handled].bg-white {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #000000 !important;
+}
+
+main button.bg-white[class*="border-2"] span,
+main button.bg-white[class*="border-black"] span,
+button[data-cart-handled].bg-white span {
+  color: #000000 !important;
+}
+
+main button.bg-white[class*="border-2"]:hover,
+main button.bg-white[class*="border-black"]:hover,
+button[data-cart-handled].bg-white:hover {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+main button.bg-white[class*="border-2"]:hover span,
+main button.bg-white[class*="border-black"]:hover span,
+button[data-cart-handled].bg-white:hover span {
+  color: #ffffff !important;
+}

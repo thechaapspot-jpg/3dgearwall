@@ -115,14 +115,41 @@
   }
 
   // ================= MODAL HELPER FUNCTIONS =================
+  let openModalCount = 0;
+  let adminScrollPosition = 0;
+
   function openModal(modalEl) {
     if (!modalEl) return;
+    if (openModalCount === 0) {
+      adminScrollPosition = window.pageYOffset || document.documentElement.scrollTop || 0;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${adminScrollPosition}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
+    }
     modalEl.classList.add('open', 'active');
+    openModalCount++;
   }
 
   function closeModal(modalEl) {
     if (!modalEl) return;
     modalEl.classList.remove('open', 'active');
+    openModalCount = Math.max(0, openModalCount - 1);
+    if (openModalCount === 0) {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      document.body.classList.remove('modal-open');
+      window.scrollTo(0, adminScrollPosition);
+    }
   }
 
   // ================= AUTH INITIALIZATION =================
@@ -910,6 +937,25 @@
         if (error) throw error;
 
         currentProducts = currentProducts.filter(p => p.id !== pendingDeleteId);
+        
+        // Clean deleted product from local carts across tabs
+        try {
+          const delIdStr = String(pendingDeleteId);
+          ['3dgearwall_cart_v2', '3dgearwall_cart', 'wheels-frames-cart'].forEach(k => {
+            const raw = localStorage.getItem(k);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              const filtered = parsed.filter(it => String(it.id) !== delIdStr);
+              localStorage.setItem(k, JSON.stringify(filtered));
+            } else if (parsed?.state?.items) {
+              parsed.state.items = parsed.state.items.filter(it => String(it.id) !== delIdStr);
+              localStorage.setItem(k, JSON.stringify(parsed));
+            }
+          });
+          window.dispatchEvent(new Event('storage'));
+        } catch (e) {}
+
         renderTable();
         updateDashboardStats();
         populateBrandFilter();

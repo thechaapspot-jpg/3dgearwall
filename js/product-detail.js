@@ -160,13 +160,10 @@
   }
 
   // 3. Synchronized Quantity Stepper System
-  const OUT_OF_STOCK_IDS = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','20','21','22','23','24','26','27','28','29','30','31','32'];
-
+  // Out-of-stock is determined dynamically by supabase-sync.js badges in the DOM
   function isCurrentProductOutOfStock() {
-    const idMatch = window.location.pathname.match(/product\/(\d+)/);
-    const prodId = idMatch ? idMatch[1] : '';
-    if (OUT_OF_STOCK_IDS.includes(prodId)) return true;
-    if (document.querySelector('.gw-stock-badge') || (document.body && document.body.innerHTML.includes('OUT OF STOCK'))) {
+    const heroSection = document.querySelector('main .space-y-6') || document.querySelector('main');
+    if (heroSection && heroSection.querySelector('#live-soldout-badge, .gw-stock-badge, .out-of-stock-badge')) {
       return true;
     }
     return false;
@@ -224,17 +221,20 @@
   }
 
   // 4. "Add to Crate" and "Buy Now" Action Integration
-  function setupCartButtons() {
-    // Extract product details from page
+  function getCurrentProductInfo() {
     const titleEl = document.querySelector('h1');
     const name = titleEl ? titleEl.textContent.trim() : document.title.split('|')[0].trim();
 
-    // Price
-    const priceEl = document.querySelector('main .text-3xl, main .text-4xl, main [class*="text-3xl"]');
+    // Price: find price that is NOT inside .line-through
     let price = 599;
-    if (priceEl) {
-      const match = priceEl.textContent.match(/₹\s*([0-9,]+)/);
-      if (match) price = Number(match[1].replace(/,/g, ''));
+    const priceCandidates = Array.from(document.querySelectorAll('main .text-3xl, main .text-4xl, main [class*="text-3xl"], main .font-black'));
+    for (const el of priceCandidates) {
+      if (el.closest('.line-through') || el.classList.contains('line-through')) continue;
+      const match = el.textContent.match(/₹\s*([0-9,]+)/);
+      if (match) {
+        price = Number(match[1].replace(/,/g, ''));
+        break;
+      }
     }
 
     // Original Price
@@ -261,6 +261,10 @@
     const idMatch = window.location.pathname.match(/product\/(\d+)/);
     const productId = idMatch ? idMatch[1] : ('GW-' + name.substring(0, 10));
 
+    return { id: productId, name, price, originalPrice, scale, image };
+  }
+
+  function setupCartButtons() {
     // Handle Add To Crate
     function handleAddToCartAction(e) {
       if (e) {
@@ -269,14 +273,15 @@
         e.stopPropagation();
       }
 
+      const info = getCurrentProductInfo();
       if (typeof window.addToCart === 'function') {
         window.addToCart({
-          id: productId,
-          name: name,
-          price: price,
-          originalPrice: originalPrice,
-          scale: scale,
-          image: mainImg ? mainImg.src : image,
+          id: info.id,
+          name: info.name,
+          price: info.price,
+          originalPrice: info.originalPrice,
+          scale: info.scale,
+          image: info.image,
           quantity: currentQty
         });
       }
@@ -290,14 +295,15 @@
         e.stopPropagation();
       }
 
+      const info = getCurrentProductInfo();
       if (typeof window.addToCart === 'function') {
         window.addToCart({
-          id: productId,
-          name: name,
-          price: price,
-          originalPrice: originalPrice,
-          scale: scale,
-          image: mainImg ? mainImg.src : image,
+          id: info.id,
+          name: info.name,
+          price: info.price,
+          originalPrice: info.originalPrice,
+          scale: info.scale,
+          image: info.image,
           quantity: currentQty
         }, { silent: true });
       }
@@ -369,5 +375,47 @@
     document.addEventListener('DOMContentLoaded', initProductPage);
   } else {
     initProductPage();
+  }
+
+  // Re-check OOS status after supabase-sync.js has hydrated the page
+  // supabase-sync.js loads after product-detail.js and injects sold-out badges
+  function recheckOOSStatus() {
+    if (isCurrentProductOutOfStock()) {
+      // Disable all action buttons
+      document.querySelectorAll('button').forEach(btn => {
+        if (btn.closest('#gw-cart-drawer') || btn.closest('#gw-checkout-modal-root') || btn.closest('#gw-toast-container')) return;
+        const text = (btn.textContent || '').trim().toLowerCase();
+        if (text.includes('add to') || text.includes('buy now') || text.includes('out of stock')) {
+          btn.setAttribute('disabled', 'true');
+          btn.style.cursor = 'not-allowed';
+          btn.style.pointerEvents = 'none';
+          btn.style.opacity = '0.5';
+        }
+      });
+      // Disable qty steppers
+      document.querySelectorAll('button[data-qty-action], .gw-qty-val').forEach(el => {
+        if (el.tagName === 'BUTTON') {
+          el.setAttribute('disabled', 'true');
+          el.style.opacity = '0.4';
+          el.style.cursor = 'not-allowed';
+          el.style.pointerEvents = 'none';
+        }
+      });
+    }
+  }
+
+  // Delayed re-check to allow supabase-sync.js to run
+  setTimeout(recheckOOSStatus, 1500);
+  setTimeout(recheckOOSStatus, 4000);
+
+  // Also watch for badge injection via MutationObserver
+  const mainSection = document.querySelector('main');
+  if (mainSection) {
+    const observer = new MutationObserver(() => {
+      recheckOOSStatus();
+    });
+    observer.observe(mainSection, { childList: true, subtree: true });
+    // Stop observing after 10 seconds to avoid unnecessary overhead
+    setTimeout(() => observer.disconnect(), 10000);
   }
 })();

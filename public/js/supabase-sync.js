@@ -10,18 +10,21 @@
   let cachedProducts = null;
   let lastFetchTime = 0;
 
-  // REST fetch helper with short cache to avoid excessive network requests
+  // REST fetch helper with cache: 'no-store' to guarantee fresh data
   async function fetchProducts(query = '', force = false) {
     const now = Date.now();
-    if (!force && query === '' && cachedProducts && (now - lastFetchTime < 10000)) {
+    if (!force && query === '' && cachedProducts && (now - lastFetchTime < 3000)) {
       return cachedProducts;
     }
 
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/products${query}`, {
+        cache: 'no-store',
         headers: {
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         }
       });
       if (!res.ok) return null;
@@ -47,11 +50,6 @@
       .replace(/'/g, '&#039;');
   }
 
-  // Determine current page context
-  const path = window.location.pathname;
-  const isProductPage = path.includes('/product/') || Boolean(path.match(/\/product\/\d+/));
-  const isCollectionsPage = path.includes('collections') || path === '/' || path.endsWith('index.html') || path === '';
-
   function resolveProductImageUrl(url) {
     if (!url) return '/images/products/placeholder.jpg';
     if (url.includes('cloudinary.com')) {
@@ -62,14 +60,22 @@
     return url;
   }
 
+  // Determine current page context
+  const path = window.location.pathname;
+  const isProductPage = path.includes('/product/') || Boolean(path.match(/\/product\/\d+/)) || path.includes('detail.html');
+  const isCollectionsPage = path.includes('collections') || path === '/' || path.endsWith('index.html') || path === '';
+
   // ================= 1. SYNC PRODUCT DETAIL PAGE =================
   async function syncProductDetailPage(force = false) {
-    const match = path.match(/product\/(\d+)/);
+    const currentLoc = window.location.pathname + window.location.search;
+    const match = currentLoc.match(/product\/(\d+)/) || currentLoc.match(/[?&]id=(\d+)/);
     if (!match) return;
 
     const productId = parseInt(match[1], 10);
     const products = await fetchProducts(`?id=eq.${productId}&select=*`, force);
-    if (!products || products.length === 0) return;
+    if (!products || products.length === 0 || products[0].is_active === false) {
+      return;
+    }
 
     const p = products[0];
     const title = p.title || p.name || '';
@@ -77,60 +83,97 @@
     const rawPrimaryImg = photos[0] || p.image || '';
     const primaryImg = resolveProductImageUrl(rawPrimaryImg);
 
-    // 1. Live Title & Meta Updates (only if custom/new product)
+    // 1. Live Title & Meta Updates
     if (title) {
-      const h1 = document.querySelector('h1');
-      if (h1 && (h1.dataset.synced !== 'true' && h1.textContent.trim() !== title.trim())) {
+      const h1 = document.getElementById('gw-detail-title') || document.querySelector('h1');
+      if (h1 && h1.textContent.trim() !== title.trim()) {
         h1.textContent = title;
         h1.dataset.synced = 'true';
       }
       document.title = `${title} - 3D Die-Cast Car Frame Wall Art | 3D Gear Wall`;
 
-      // Breadcrumb last span
-      const breadcrumbs = document.querySelectorAll('nav a, nav span');
-      if (breadcrumbs.length > 0) {
-        const lastBreadcrumb = breadcrumbs[breadcrumbs.length - 1];
-        if (lastBreadcrumb && lastBreadcrumb.tagName.toLowerCase() === 'span') {
-          lastBreadcrumb.textContent = title;
+      // Breadcrumb
+      const breadcrumbEl = document.getElementById('gw-detail-breadcrumb');
+      if (breadcrumbEl) {
+        breadcrumbEl.textContent = title;
+      } else {
+        const breadcrumbs = document.querySelectorAll('nav a, nav span');
+        if (breadcrumbs.length > 0) {
+          const lastBreadcrumb = breadcrumbs[breadcrumbs.length - 1];
+          if (lastBreadcrumb && lastBreadcrumb.tagName.toLowerCase() === 'span') {
+            lastBreadcrumb.textContent = title;
+          }
         }
       }
     }
 
     // 2. Brand & Scale Updates
     if (p.brand) {
-      const brandEl = document.querySelector('p.uppercase, [class*="tracking-[0.2em]"]');
+      const brandEl = document.getElementById('gw-detail-brand') || document.querySelector('main p.uppercase');
       if (brandEl) brandEl.textContent = p.brand;
     }
     if (p.scale) {
-      const scaleEl = document.querySelector('[class*="bg-black text-white text-xs font-bold"]');
+      const scaleEl = document.getElementById('gw-detail-scale') || document.querySelector('[class*="bg-black text-white text-xs font-bold"]');
       if (scaleEl) scaleEl.textContent = `Scale ${p.scale}`;
     }
 
     // 3. Description Update
     if (p.description) {
-      const descEl = document.querySelector('main p.text-black\\/60');
+      const descEl = document.getElementById('gw-detail-desc') || document.querySelector('main p.leading-relaxed');
       if (descEl) descEl.textContent = p.description;
     }
 
-    // 4. Hero & Gallery Images (only override if custom uploaded photo in Supabase Storage or data URL)
-    if (rawPrimaryImg && (rawPrimaryImg.includes('supabase.co/storage') || rawPrimaryImg.startsWith('data:'))) {
-      const mainImg = document.querySelector('main .aspect-square img, main [class*="aspect-"] img');
-      if (mainImg && mainImg.getAttribute('src') !== rawPrimaryImg) {
-        mainImg.src = rawPrimaryImg;
-        if (mainImg.hasAttribute('srcset')) mainImg.removeAttribute('srcset');
-        if (mainImg.hasAttribute('imagesrcset')) mainImg.removeAttribute('imagesrcset');
-        mainImg.alt = title;
-      }
+    // 4. Hero & Gallery Images
+    const mainImg = document.getElementById('gw-detail-main-img') || document.querySelector('main .aspect-square img, main [class*="aspect-"] img');
+    if (mainImg && primaryImg) {
+      mainImg.src = primaryImg;
+      if (mainImg.hasAttribute('srcset')) mainImg.removeAttribute('srcset');
+      if (mainImg.hasAttribute('imagesrcset')) mainImg.removeAttribute('imagesrcset');
+      mainImg.alt = title;
+    }
+
+    // Multi-photo Thumbnail Strip
+    const thumbStrip = document.getElementById('gw-detail-thumb-strip');
+    if (thumbStrip && photos.length > 0) {
+      thumbStrip.innerHTML = photos.map((imgUrl, idx) => {
+        const resolved = resolveProductImageUrl(imgUrl);
+        return `
+          <button type="button" class="gw-thumb-btn w-16 h-16 md:w-20 md:h-20 flex-shrink-0 border-2 ${idx === 0 ? 'border-black' : 'border-black/10'} hover:border-black/50 transition-all p-1 bg-white cursor-pointer" data-img-src="${escapeHtml(resolved)}">
+            <img src="${escapeHtml(resolved)}" alt="Thumbnail ${idx + 1}" class="w-full h-full object-contain pointer-events-none" />
+          </button>
+        `;
+      }).join('');
+
+      thumbStrip.querySelectorAll('.gw-thumb-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          thumbStrip.querySelectorAll('.gw-thumb-btn').forEach(b => b.classList.replace('border-black', 'border-black/10'));
+          btn.classList.replace('border-black/10', 'border-black');
+          const targetSrc = btn.getAttribute('data-img-src');
+          if (mainImg && targetSrc) mainImg.src = targetSrc;
+        });
+      });
     }
 
     // 5. Live Price Update
     if (p.price) {
-      const priceElements = document.querySelectorAll('.text-2xl.font-black, .text-3xl.font-black, [data-testid="product-price"]');
+      const priceEl = document.getElementById('gw-detail-price');
+      if (priceEl) {
+        priceEl.textContent = `₹${Number(p.price).toLocaleString('en-IN')}`;
+      }
+      const priceElements = document.querySelectorAll('.text-2xl.font-black, .text-3xl.font-black, main [class*="text-3xl"], main .font-black');
       priceElements.forEach(el => {
-        if (el.textContent.includes('₹')) {
+        if (!el.closest('.line-through') && !el.classList.contains('line-through') && el.textContent.includes('₹')) {
           el.textContent = `₹${Number(p.price).toLocaleString('en-IN')}`;
         }
       });
+    }
+    if (p.original_price) {
+      const origPriceEl = document.getElementById('gw-detail-orig-price') || document.querySelector('main .line-through');
+      if (origPriceEl) {
+        origPriceEl.textContent = `₹${Number(p.original_price).toLocaleString('en-IN')}`;
+        origPriceEl.classList.remove('hidden');
+        origPriceEl.style.display = 'inline';
+      }
     }
 
     // 6. Out of Stock Two-Way Handling
@@ -197,6 +240,7 @@
     const brand = p.brand || 'Luxury';
     const price = Number(p.price) || 599;
     const origPrice = p.original_price ? Number(p.original_price) : null;
+    const photos = (Array.isArray(p.photos) && p.photos.length > 0) ? p.photos : ((Array.isArray(p.images) && p.images.length > 0) ? p.images : []);
     const rawPrimaryImg = photos[0] || p.image || '/images/products/placeholder.jpg';
     const primaryImg = resolveProductImageUrl(rawPrimaryImg);
 
@@ -285,6 +329,23 @@
                 brandEl.textContent = p.brand;
                 hasCardChanges = true;
               }
+              // Update price
+              const priceEl = card.querySelector('.text-base.font-bold, .font-bold.text-black');
+              if (priceEl && p.price) {
+                const formattedPrice = `₹${Number(p.price).toLocaleString('en-IN')}`;
+                if (priceEl.textContent.trim() !== formattedPrice) {
+                  priceEl.textContent = formattedPrice;
+                  hasCardChanges = true;
+                }
+              }
+              const origPriceEl = card.querySelector('.line-through');
+              if (origPriceEl && p.original_price) {
+                const formattedOrig = `₹${Number(p.original_price).toLocaleString('en-IN')}`;
+                if (origPriceEl.textContent.trim() !== formattedOrig) {
+                  origPriceEl.textContent = formattedOrig;
+                  hasCardChanges = true;
+                }
+              }
               const photos = (Array.isArray(p.photos) && p.photos.length > 0) ? p.photos : ((Array.isArray(p.images) && p.images.length > 0) ? p.images : []);
               const rawImg = photos[0] || p.image;
               // Only override image if a custom uploaded photo from Supabase Storage or data URL is present
@@ -330,8 +391,15 @@
         }
       });
 
-      // If cards were added or removed, re-index collections filter immediately
-      if (hasCardChanges && window.reindexCollections) {
+      // Always keep Showing X models count accurately synchronized
+      const count = grid.querySelectorAll('.collection-card').length;
+      const showingEl = document.querySelector('.mb-8 p.text-sm');
+      if (showingEl) {
+        showingEl.innerHTML = `Showing <span class="font-semibold text-black">${count}</span> models`;
+      }
+
+      // Re-index collections filter pills and search index
+      if (window.reindexCollections) {
         window.reindexCollections();
       }
     }
@@ -405,7 +473,8 @@
 
           const isDarkCard = Boolean(
             card.closest('section')?.classList.contains('bg-[var(--bg-dark)]') ||
-            card.querySelector('.bg-[var(--bg-dark-card)]') ||
+            card.classList.contains('bg-[var(--bg-dark-card)]') ||
+            card.querySelector('[class*="bg-dark-card"]') ||
             (btn.dataset.origClass && btn.dataset.origClass.includes('bg-white'))
           );
 

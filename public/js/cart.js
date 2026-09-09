@@ -34,44 +34,6 @@
       }
     } catch (e) { items = []; }
 
-    if (items.length === 0) {
-      try {
-        const legacySaved = localStorage.getItem(LEGACY_STORAGE_KEY);
-        if (legacySaved) {
-          const parsed = JSON.parse(legacySaved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            items = parsed;
-          }
-        }
-      } catch (e) {}
-    }
-
-    // Merge any items from Next.js wheels-frames-cart
-    try {
-      const nextSaved = localStorage.getItem('wheels-frames-cart');
-      if (nextSaved) {
-        const parsedNext = JSON.parse(nextSaved);
-        const nextItems = parsedNext?.state?.items || (Array.isArray(parsedNext) ? parsedNext : null);
-        if (Array.isArray(nextItems) && nextItems.length > 0) {
-          nextItems.forEach(nItem => {
-            const exists = items.find(it => String(it.id) === String(nItem.id) || (it.name && nItem.name && it.name.trim() === nItem.name.trim()));
-            if (!exists) {
-              items.push({
-                id: nItem.id || ('GW-' + Date.now()),
-                name: nItem.name || 'Handcrafted 3D Frame',
-                price: Number(nItem.price) || 599,
-                originalPrice: nItem.originalPrice ? Number(nItem.originalPrice) : null,
-                scale: nItem.scale || '1:36',
-                image: nItem.image || '/images/products/twoofvu6src3z5foyd8h.jpg',
-                quantity: Math.max(1, Number(nItem.quantity) || 1),
-                customDetails: nItem.customDetails || null
-              });
-            }
-          });
-        }
-      }
-    } catch (e) {}
-
     return items;
   }
 
@@ -1039,14 +1001,32 @@
       const matchName = item.name === product.name;
       const matchScale = item.scale === product.scale;
       const matchCustom = JSON.stringify(item.customDetails || {}) === JSON.stringify(product.customDetails || {});
-      return (matchId || matchName) && matchScale && matchCustom;
+      // If custom poster, match on customDetails
+      if (product.customDetails) {
+        return matchName && matchScale && matchCustom;
+      }
+      // For standard products, both ID (or name) AND matching name must agree to avoid ghost/deleted product collision
+      return ((matchId && matchName) || (!product.id && matchName)) && matchScale;
     });
 
     const qtyToAdd = Math.max(1, Number(product.quantity) || 1);
 
     if (existing) {
+      // Synchronize latest live price & image
+      existing.name = product.name;
+      existing.price = Number(product.price) || existing.price;
+      existing.originalPrice = product.originalPrice ? Number(product.originalPrice) : existing.originalPrice;
+      if (product.image) existing.image = product.image;
       existing.quantity = (Number(existing.quantity) || 1) + qtyToAdd;
     } else {
+      // Purge any stale/ghost cart item that might share this product.id with a different name (e.g. deleted old product)
+      if (product.id) {
+        const staleIdx = cart.findIndex(it => String(it.id) === String(product.id) && it.name !== product.name);
+        if (staleIdx !== -1) {
+          cart.splice(staleIdx, 1);
+        }
+      }
+
       cart.push({
         id: product.id || ('GW-' + Date.now()),
         name: product.name,
@@ -1119,21 +1099,65 @@
       const titleEl = card.querySelector('h1, h2, h3, .product-title');
       const name = titleEl ? titleEl.textContent.trim() : document.title.split('|')[0].trim();
 
-      const priceText = card.textContent.match(/₹\s*([0-9,]+)/);
-      const price = priceText ? Number(priceText[1].replace(/,/g, '')) : 599;
+      // Extract ID accurately from page URL (on detail page) or card link/data attribute
+      let productId = null;
+      if (window.location.pathname.includes('/product/')) {
+        const pathMatch = window.location.pathname.match(/product\/(\d+)/);
+        if (pathMatch) productId = pathMatch[1];
+      }
+      if (!productId) {
+        if (card.dataset && card.dataset.productId) {
+          productId = card.dataset.productId;
+        } else {
+          const link = card.querySelector('a[href*="product/"]');
+          if (link) {
+            const m = (link.getAttribute('href') || '').match(/product\/(\d+)/);
+            if (m) productId = m[1];
+          }
+        }
+      }
+      if (!productId) productId = name;
 
-      const imgEl = card.querySelector('img');
+      // Price: find price that is NOT line-through
+      let price = 599;
+      let originalPrice = null;
+      const origEl = card.querySelector('.line-through');
+      if (origEl) {
+        const m = origEl.textContent.match(/₹\s*([0-9,]+)/);
+        if (m) originalPrice = Number(m[1].replace(/,/g, ''));
+      }
+      const priceCandidates = Array.from(card.querySelectorAll('.font-bold, .text-base, .text-xl, .text-2xl, .text-3xl, [data-testid="product-price"]'));
+      for (const pel of priceCandidates) {
+        if (pel.closest('.line-through') || pel.classList.contains('line-through')) continue;
+        const m = pel.textContent.match(/₹\s*([0-9,]+)/);
+        if (m) {
+          price = Number(m[1].replace(/,/g, ''));
+          break;
+        }
+      }
+
+      // Quantity from stepper if present
+      let quantity = 1;
+      const qtyEl = document.querySelector('.gw-qty-val');
+      if (qtyEl) {
+        const q = parseInt(qtyEl.textContent.trim(), 10);
+        if (!isNaN(q) && q > 0) quantity = q;
+      }
+
+      const imgEl = card.querySelector('#gw-detail-main-img, .aspect-square img, img');
       const image = imgEl ? (imgEl.src || imgEl.getAttribute('src')) : '/images/products/twoofvu6src3z5foyd8h.jpg';
 
       const scaleMatch = (name + ' ' + card.textContent).match(/1:(18|24|36|43|64)/);
       const scale = scaleMatch ? scaleMatch[0] : '1:36';
 
       window.addToCart({
-        id: name,
+        id: productId,
         name: name,
         price: price,
+        originalPrice: originalPrice,
         scale: scale,
-        image: image
+        image: image,
+        quantity: quantity
       });
 
       if (isBuyNowButton) {

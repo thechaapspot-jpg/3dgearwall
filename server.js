@@ -92,8 +92,12 @@ const server = http.createServer((req, res) => {
       if (fs.existsSync(prodFile) && fs.statSync(prodFile).isFile()) {
         return serveFile(prodFile, res);
       }
-      // Fallback: If static file doesn't exist yet, serve product template (hydrated live by supabase-sync.js)
-      const templateFile = path.join(ROOT, 'product', '39.html');
+      // Dynamic product fallback: serve universal product template (hydrated live by supabase-sync.js)
+      const detailTemplate = path.join(ROOT, 'product', 'detail.html');
+      if (fs.existsSync(detailTemplate)) {
+        return serveFile(detailTemplate, res);
+      }
+      const templateFile = path.join(ROOT, 'product', '38.html');
       if (fs.existsSync(templateFile)) {
         return serveFile(templateFile, res);
       }

@@ -10,7 +10,8 @@
     { "source": "/track", "destination": "/track.html" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/thank-you", "destination": "/thank-you.html" },
-    { "source": "/product/:id", "destination": "/product/:id.html" }
+    { "source": "/product/:id.html", "destination": "/product/detail.html" },
+    { "source": "/product/:id", "destination": "/product/detail.html" }
   ],
   "headers": [
     {
