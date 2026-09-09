@@ -184,21 +184,48 @@
         }
 
         cardButtons.forEach(btn => {
+          if (!btn.dataset.origHtml) btn.dataset.origHtml = btn.innerHTML;
+          if (!btn.dataset.origClass) btn.dataset.origClass = btn.className;
+
           btn.disabled = false;
           btn.style.pointerEvents = 'auto';
           btn.style.opacity = '1';
           btn.classList.remove('cursor-not-allowed');
-          btn.classList.remove('bg-black/10', 'text-black/40');
-          btn.classList.add('bg-[var(--bg-black)]', 'text-white', 'hover:bg-black');
-          if (btn.dataset.origHtml && btn.dataset.origHtml.includes('Add to Crate')) {
-            btn.innerHTML = btn.dataset.origHtml;
+
+          const isDarkCard = Boolean(
+            card.closest('section')?.classList.contains('bg-[var(--bg-dark)]') ||
+            card.querySelector('.bg-[var(--bg-dark-card)]') ||
+            (btn.dataset.origClass && btn.dataset.origClass.includes('bg-white'))
+          );
+
+          if (isDarkCard) {
+            // Headliners dark section button: Clean, high-contrast white button with black text & icon
+            btn.classList.remove('bg-[var(--bg-black)]', 'text-white', 'hover:bg-black', 'bg-black/10', 'text-black/40');
+            btn.classList.add('bg-white', 'text-black', 'hover:bg-white/90');
+            if (btn.dataset.origHtml && btn.dataset.origHtml.includes('Add to Crate')) {
+              btn.innerHTML = btn.dataset.origHtml;
+            } else {
+              btn.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                <span>Add to Crate</span>
+              `;
+            }
           } else {
-            btn.innerHTML = `
-              <svg class="w-3.5 h-3.5 md:w-4 md:h-4 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-              </svg>
-              <span class="whitespace-nowrap">Add to Crate</span>
-            `;
+            // Standard light catalog button: Dark button with white text & icon
+            btn.classList.remove('bg-white', 'text-black', 'hover:bg-white/90', 'bg-black/10', 'text-black/40');
+            btn.classList.add('bg-[var(--bg-black)]', 'text-white', 'hover:bg-black');
+            if (btn.dataset.origHtml && btn.dataset.origHtml.includes('Add to Crate')) {
+              btn.innerHTML = btn.dataset.origHtml;
+            } else {
+              btn.innerHTML = `
+                <svg class="w-3.5 h-3.5 md:w-4 md:h-4 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+                <span class="whitespace-nowrap">Add to Crate</span>
+              `;
+            }
           }
         });
       }

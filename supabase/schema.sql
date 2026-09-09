@@ -4,6 +4,7 @@
 -- 1. Create products table
 CREATE TABLE IF NOT EXISTS public.products (
     id BIGINT PRIMARY KEY,
+    slug TEXT,
     name TEXT NOT NULL,
     brand TEXT NOT NULL,
     price INTEGER NOT NULL,
