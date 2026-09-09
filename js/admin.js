@@ -103,6 +103,17 @@
     });
   }
 
+  function notifyCatalogChanged() {
+    try {
+      if (window.BroadcastChannel) {
+        const bc = new BroadcastChannel('gw_catalog_sync');
+        bc.postMessage({ type: 'CATALOG_UPDATED', timestamp: Date.now() });
+        bc.close();
+      }
+      localStorage.setItem('gw_catalog_updated', String(Date.now()));
+    } catch (e) {}
+  }
+
   // ================= MODAL HELPER FUNCTIONS =================
   function openModal(modalEl) {
     if (!modalEl) return;
@@ -727,6 +738,7 @@
         updateDashboardStats();
         populateBrandFilter();
         closeModal(editModal);
+        notifyCatalogChanged();
         showToast(`Product #${id} updated successfully`);
       } catch (err) {
         console.error('Update failed:', err);
@@ -863,6 +875,7 @@
         updateDashboardStats();
         populateBrandFilter();
         closeModal(addModal);
+        notifyCatalogChanged();
         showToast(`Created new product #${newId}: ${title}`);
       } catch (err) {
         console.error('Insert failed:', err);
@@ -901,6 +914,7 @@
         updateDashboardStats();
         populateBrandFilter();
         closeModal(deleteModal);
+        notifyCatalogChanged();
         showToast(`Product #${pendingDeleteId} deleted`);
       } catch (err) {
         console.error('Delete failed:', err);

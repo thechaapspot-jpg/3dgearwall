@@ -83,11 +83,20 @@ const server = http.createServer((req, res) => {
     return serveFile(filePath + '.html', res);
   }
 
-  // 3. Check /product/38 -> /product/38.html
-  if (safePath.startsWith('/product/') && !safePath.endsWith('.html')) {
-    const pHtml = filePath + '.html';
-    if (fs.existsSync(pHtml) && fs.statSync(pHtml).isFile()) {
-      return serveFile(pHtml, res);
+  // 3. Check /product/:id -> /product/:id.html or dynamic product page fallback
+  if (safePath.startsWith('/product/')) {
+    const prodMatch = safePath.match(/\/product\/(\d+)/);
+    if (prodMatch) {
+      const prodId = prodMatch[1];
+      const prodFile = path.join(ROOT, 'product', `${prodId}.html`);
+      if (fs.existsSync(prodFile) && fs.statSync(prodFile).isFile()) {
+        return serveFile(prodFile, res);
+      }
+      // Fallback: If static file doesn't exist yet, serve product template (hydrated live by supabase-sync.js)
+      const templateFile = path.join(ROOT, 'product', '39.html');
+      if (fs.existsSync(templateFile)) {
+        return serveFile(templateFile, res);
+      }
     }
   }
 
