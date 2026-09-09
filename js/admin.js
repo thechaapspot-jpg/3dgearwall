@@ -103,12 +103,15 @@
     });
   }
 
-  function notifyCatalogChanged() {
+  function notifyCatalogChanged(deletedId = null) {
     try {
       if (window.BroadcastChannel) {
         const bc = new BroadcastChannel('gw_catalog_sync');
-        bc.postMessage({ type: 'CATALOG_UPDATED', timestamp: Date.now() });
+        bc.postMessage({ type: 'CATALOG_UPDATED', deletedId: deletedId ? String(deletedId) : null, timestamp: Date.now() });
         bc.close();
+      }
+      if (deletedId) {
+        localStorage.setItem('gw_product_deleted', JSON.stringify({ id: String(deletedId), timestamp: Date.now() }));
       }
       localStorage.setItem('gw_catalog_updated', String(Date.now()));
     } catch (e) {}
@@ -129,8 +132,19 @@
       document.body.style.width = '100%';
       document.body.style.overflow = 'hidden';
       document.documentElement.style.overflow = 'hidden';
+      document.documentElement.classList.add('modal-open');
       document.body.classList.add('modal-open');
     }
+
+    if (!modalEl._touchIsolated) {
+      modalEl._touchIsolated = true;
+      modalEl.addEventListener('touchmove', function (e) {
+        if (!e.target.closest('.overflow-y-auto')) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+    }
+
     modalEl.classList.add('open', 'active');
     openModalCount++;
   }
@@ -147,6 +161,7 @@
       document.body.style.width = '';
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
+      document.documentElement.classList.remove('modal-open');
       document.body.classList.remove('modal-open');
       window.scrollTo(0, adminScrollPosition);
     }
@@ -865,8 +880,11 @@
 
       const primaryImage = addingPhotos[0] || '/images/products/placeholder.jpg';
 
-      const maxId = currentProducts.reduce((max, p) => Math.max(max, Number(p.id) || 0), 0);
-      const newId = maxId + 1;
+      const storedMaxId = Number(localStorage.getItem('gw_highest_product_id') || 0);
+      const currentMaxId = currentProducts.reduce((max, p) => Math.max(max, Number(p.id) || 0), 0);
+      const newId = Math.max(storedMaxId, currentMaxId) + 1;
+      localStorage.setItem('gw_highest_product_id', String(newId));
+
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
       const newProduct = {
@@ -960,7 +978,7 @@
         updateDashboardStats();
         populateBrandFilter();
         closeModal(deleteModal);
-        notifyCatalogChanged();
+        notifyCatalogChanged(pendingDeleteId);
         showToast(`Product #${pendingDeleteId} deleted`);
       } catch (err) {
         console.error('Delete failed:', err);

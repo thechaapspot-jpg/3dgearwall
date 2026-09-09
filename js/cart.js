@@ -77,7 +77,7 @@
     window.dispatchEvent(new CustomEvent('gearwall:cart-updated', { detail: { cart } }));
   }
 
-  // Cross-tab sync
+  // Cross-tab sync & deleted product purger
   window.addEventListener('storage', (e) => {
     if (e.key === STORAGE_KEY || e.key === LEGACY_STORAGE_KEY || e.key === 'wheels-frames-cart') {
       try {
@@ -85,7 +85,73 @@
         updateCartUI();
       } catch (err) { /* ignore */ }
     }
+    if (e.key === 'gw_product_deleted' && e.newValue) {
+      try {
+        const info = JSON.parse(e.newValue);
+        if (info && info.id) {
+          cart = getCart().filter(item => String(item.id) !== String(info.id));
+          saveCart();
+          updateCartUI();
+        }
+      } catch (err) {}
+    }
   });
+
+  try {
+    if (window.BroadcastChannel) {
+      const bc = new BroadcastChannel('gw_catalog_sync');
+      bc.onmessage = (ev) => {
+        if (ev && ev.data && ev.data.deletedId) {
+          const delId = String(ev.data.deletedId);
+          cart = getCart().filter(item => String(item.id) !== delId);
+          saveCart();
+          updateCartUI();
+        }
+      };
+    }
+  } catch (e) {}
+
+  // Live Catalog Synchronizer: removes deleted items & updates changed titles/prices
+  window.syncCartWithLiveCatalog = function (liveProducts) {
+    if (!Array.isArray(liveProducts) || liveProducts.length === 0) return;
+    const liveMap = new Map();
+    liveProducts.forEach(p => {
+      if (p.is_active !== false) liveMap.set(String(p.id), p);
+    });
+    let changed = false;
+    cart = getCart();
+    const nextCart = [];
+    for (const item of cart) {
+      if (!item.id || item.customDetails) {
+        nextCart.push(item);
+        continue;
+      }
+      const live = liveMap.get(String(item.id));
+      if (!live) {
+        // Product was deleted from catalog! Purge from cart!
+        changed = true;
+        continue;
+      }
+      if (live.title && item.name !== live.title) {
+        item.name = live.title;
+        changed = true;
+      }
+      if (live.price && Number(item.price) !== Number(live.price)) {
+        item.price = Number(live.price);
+        changed = true;
+      }
+      if (live.original_price && Number(item.originalPrice) !== Number(live.original_price)) {
+        item.originalPrice = Number(live.original_price);
+        changed = true;
+      }
+      nextCart.push(item);
+    }
+    if (changed) {
+      cart = nextCart;
+      saveCart();
+      updateCartUI();
+    }
+  };
 
   // Helpers
   function formatINR(num) {

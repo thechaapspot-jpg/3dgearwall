@@ -74,6 +74,17 @@
     const productId = parseInt(match[1], 10);
     const products = await fetchProducts(`?id=eq.${productId}&select=*`, force);
     if (!products || products.length === 0 || products[0].is_active === false) {
+      const h1 = document.getElementById('gw-detail-title') || document.querySelector('h1');
+      if (h1) h1.textContent = 'Product Unavailable';
+      const descEl = document.getElementById('gw-detail-desc') || document.querySelector('main p.leading-relaxed');
+      if (descEl) descEl.innerHTML = 'This model is currently not available in our collection. <a href="/collections.html" class="underline font-bold text-black ml-1">Browse Available Models</a>';
+      const btns = document.querySelectorAll('main button');
+      btns.forEach(b => {
+        if ((b.textContent || '').includes('Crate') || (b.textContent || '').includes('Buy')) {
+          b.disabled = true;
+          b.classList.add('cursor-not-allowed', 'opacity-40');
+        }
+      });
       return;
     }
 
@@ -291,6 +302,11 @@
     const products = await fetchProducts('?order=id.desc', force);
     if (!products || products.length === 0) return;
 
+    // Keep active cart items synchronized with real live catalog
+    if (window.syncCartWithLiveCatalog) {
+      window.syncCartWithLiveCatalog(products);
+    }
+
     const productMap = new Map();
     products.forEach(p => productMap.set(Number(p.id), p));
 
@@ -431,7 +447,7 @@
           const badge = document.createElement('div');
           badge.className = 'live-card-soldout absolute top-3 right-3 z-20 px-2.5 py-1 bg-black/90 border border-rose-500/60 text-rose-400 font-mono text-[10px] font-bold uppercase tracking-wider shadow-lg';
           badge.innerHTML = '● SOLD OUT';
-          const imgContainer = card.querySelector('.aspect-\\[2\\/3\\]') || card.querySelector('.relative.overflow-hidden') || card;
+          const imgContainer = card.querySelector('[class*="aspect-"]') || card.querySelector('.relative.overflow-hidden') || card;
           imgContainer.style.position = 'relative';
           imgContainer.appendChild(badge);
         } else if (hardcodedBadge) {
