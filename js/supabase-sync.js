@@ -52,6 +52,16 @@
   const isProductPage = path.includes('/product/') || Boolean(path.match(/\/product\/\d+/));
   const isCollectionsPage = path.includes('collections') || path === '/' || path.endsWith('index.html') || path === '';
 
+  function resolveProductImageUrl(url) {
+    if (!url) return '/images/products/placeholder.jpg';
+    if (url.includes('cloudinary.com')) {
+      const parts = url.split('/');
+      const filename = parts[parts.length - 1].split('?')[0];
+      return `/images/products/${filename}`;
+    }
+    return url;
+  }
+
   // ================= 1. SYNC PRODUCT DETAIL PAGE =================
   async function syncProductDetailPage(force = false) {
     const match = path.match(/product\/(\d+)/);
@@ -64,12 +74,13 @@
     const p = products[0];
     const title = p.title || p.name || '';
     const photos = (Array.isArray(p.photos) && p.photos.length > 0) ? p.photos : ((Array.isArray(p.images) && p.images.length > 0) ? p.images : []);
-    const primaryImg = photos[0] || p.image || '';
+    const rawPrimaryImg = photos[0] || p.image || '';
+    const primaryImg = resolveProductImageUrl(rawPrimaryImg);
 
-    // 1. Live Title & Meta Updates
+    // 1. Live Title & Meta Updates (only if custom/new product)
     if (title) {
       const h1 = document.querySelector('h1');
-      if (h1 && (!h1.textContent.trim() || h1.textContent.includes('Loading') || h1.textContent.includes('3D Diecast') || h1.dataset.synced !== 'true')) {
+      if (h1 && (h1.dataset.synced !== 'true' && h1.textContent.trim() !== title.trim())) {
         h1.textContent = title;
         h1.dataset.synced = 'true';
       }
@@ -101,15 +112,14 @@
       if (descEl) descEl.textContent = p.description;
     }
 
-    // 4. Hero & Gallery Images
-    if (primaryImg) {
+    // 4. Hero & Gallery Images (only override if custom uploaded photo in Supabase Storage or data URL)
+    if (rawPrimaryImg && (rawPrimaryImg.includes('supabase.co/storage') || rawPrimaryImg.startsWith('data:'))) {
       const mainImg = document.querySelector('main .aspect-square img, main [class*="aspect-"] img');
-      if (mainImg && (mainImg.src.includes('twoofvu6src3z5foyd8h') || !mainImg.src || mainImg.dataset.synced !== 'true')) {
-        mainImg.src = primaryImg;
+      if (mainImg && mainImg.getAttribute('src') !== rawPrimaryImg) {
+        mainImg.src = rawPrimaryImg;
         if (mainImg.hasAttribute('srcset')) mainImg.removeAttribute('srcset');
         if (mainImg.hasAttribute('imagesrcset')) mainImg.removeAttribute('imagesrcset');
         mainImg.alt = title;
-        mainImg.dataset.synced = 'true';
       }
     }
 
@@ -187,8 +197,8 @@
     const brand = p.brand || 'Luxury';
     const price = Number(p.price) || 599;
     const origPrice = p.original_price ? Number(p.original_price) : null;
-    const photos = (Array.isArray(p.photos) && p.photos.length > 0) ? p.photos : ((Array.isArray(p.images) && p.images.length > 0) ? p.images : []);
-    const primaryImg = photos[0] || p.image || '/images/products/placeholder.jpg';
+    const rawPrimaryImg = photos[0] || p.image || '/images/products/placeholder.jpg';
+    const primaryImg = resolveProductImageUrl(rawPrimaryImg);
 
     const outOfStockBadgeHtml = p.out_of_stock ?
       `<span class="out-of-stock-badge absolute top-3 right-3 z-10 bg-black/85 backdrop-blur-sm text-white border border-white/20 text-[10px] font-black px-2.5 py-1 tracking-wider uppercase">OUT OF STOCK</span>` : '';
@@ -276,11 +286,14 @@
                 hasCardChanges = true;
               }
               const photos = (Array.isArray(p.photos) && p.photos.length > 0) ? p.photos : ((Array.isArray(p.images) && p.images.length > 0) ? p.images : []);
-              const primaryImg = photos[0] || p.image;
-              const imgEl = card.querySelector('img');
-              if (imgEl && primaryImg && imgEl.getAttribute('src') !== primaryImg) {
-                imgEl.src = primaryImg;
-                if (imgEl.hasAttribute('srcset')) imgEl.removeAttribute('srcset');
+              const rawImg = photos[0] || p.image;
+              // Only override image if a custom uploaded photo from Supabase Storage or data URL is present
+              if (rawImg && (rawImg.includes('supabase.co/storage') || rawImg.startsWith('data:'))) {
+                const imgEl = card.querySelector('img');
+                if (imgEl && imgEl.getAttribute('src') !== rawImg) {
+                  imgEl.src = rawImg;
+                  if (imgEl.hasAttribute('srcset')) imgEl.removeAttribute('srcset');
+                }
               }
             }
           }
